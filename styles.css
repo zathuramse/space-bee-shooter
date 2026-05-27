@@ -40,7 +40,7 @@ button:focus-visible {
   width: min(1240px, calc(100vw - 28px));
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto auto;
   gap: 12px;
   margin: 0 auto;
   padding: 14px 0 18px;
@@ -53,7 +53,9 @@ button:focus-visible {
 }
 
 .hud div,
-.upgrade-panel article {
+.upgrade-panel article,
+.mission-panel article,
+.mission-panel div {
   border: 1px solid rgba(173, 208, 214, 0.22);
   border-radius: 8px;
   background:
@@ -72,6 +74,7 @@ button:focus-visible {
 
 .hud span,
 .upgrade-panel span,
+.mission-panel span,
 .tips span {
   color: #9eb3ba;
   font-size: 12px;
@@ -188,7 +191,7 @@ canvas {
 
 .controls {
   display: grid;
-  grid-template-columns: 72px minmax(120px, 1fr) 72px 92px 92px;
+  grid-template-columns: 72px 72px minmax(120px, 1fr) 72px 72px 92px 92px;
   gap: 10px;
 }
 
@@ -213,6 +216,36 @@ canvas {
   background: #35c4df;
   color: #041016;
   transform: translateY(1px) scale(0.99);
+}
+
+.mission-panel {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 150px 110px 130px;
+  gap: 10px;
+}
+
+.mission-panel article,
+.mission-panel div {
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 11px 14px;
+}
+
+.mission-panel article {
+  align-content: start;
+}
+
+.mission-panel strong {
+  color: #ffffff;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+.mission-panel small {
+  color: #bfd0d5;
+  line-height: 1.35;
 }
 
 .arsenal-panel {
@@ -356,6 +389,14 @@ canvas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .mission-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mission-panel article {
+    grid-column: 1 / -1;
+  }
+
   .arsenal-panel {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -394,7 +435,15 @@ canvas {
   }
 
   .controls {
-    grid-template-columns: 54px minmax(96px, 1fr) 54px 70px 70px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #fireButton {
+    grid-column: span 2;
+  }
+
+  .mission-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .upgrade-panel {

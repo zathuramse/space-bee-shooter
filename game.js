@@ -8,6 +8,12 @@ const livesEl = document.querySelector('#lives')
 const shieldEl = document.querySelector('#shield')
 const weaponEl = document.querySelector('#weapon')
 const comboEl = document.querySelector('#combo')
+const storyTitleEl = document.querySelector('#storyTitle')
+const storyTextEl = document.querySelector('#storyText')
+const missionLabelEl = document.querySelector('#missionLabel')
+const missionProgressEl = document.querySelector('#missionProgress')
+const relicsEl = document.querySelector('#relics')
+const overdriveEl = document.querySelector('#overdrive')
 const startOverlay = document.querySelector('#startOverlay')
 const waveOverlay = document.querySelector('#waveOverlay')
 const gameOverOverlay = document.querySelector('#gameOverOverlay')
@@ -29,7 +35,7 @@ const oneShotButtons = {
 }
 
 const world = { width: 960, height: 620 }
-const input = { left: false, right: false, fire: false }
+const input = { left: false, right: false, up: false, down: false, fire: false }
 const upgradeOrder = ['weapon', 'engine', 'hull', 'shield', 'drone']
 
 const upgradeDefs = {
@@ -82,6 +88,16 @@ const state = {
   stageMod: 'calm',
   meteorTimer: 0,
   screenFlash: 0,
+  storyTitle: '',
+  storyText: '',
+  missionKind: 'clear',
+  missionLabel: '',
+  missionProgress: 0,
+  missionTarget: 1,
+  missionComplete: false,
+  missionSpawnTimer: 0,
+  relics: 0,
+  overdriveTimer: 0,
   inventory: {
     nuke: 0,
     pulse: 0,
@@ -105,6 +121,7 @@ const player = {
   width: 54,
   height: 42,
   speed: 430,
+  liftSpeed: 310,
   cooldown: 0,
   invincible: 0,
 }
@@ -125,6 +142,22 @@ const stageMods = {
   treasure: { label: '寶箱潮', color: '#f4d35e' },
   ion: { label: '離子風暴', color: '#b987ff' },
   solar: { label: '太陽風', color: '#e85d75' },
+}
+
+const storyChapters = [
+  { title: '第零章：晶片求救訊號', text: '外環蜂巢正在吞噬失聯殖民站，艦載 AI 要你回收最後的航路資料。' },
+  { title: '第一章：霓虹蜂巢裂縫', text: '敵群開始變形，牠們把廢棄衛星改造成活體砲台。' },
+  { title: '第二章：黑盒走廊', text: '你進入蜂巢航道，必須在殘骸和伏擊之間搶回資料核心。' },
+  { title: '第三章：合成女王協議', text: 'Boss 不是單一目標，而是會指揮護衛、誘導隕石和鎖定雷射的戰術網路。' },
+  { title: '終章：超載返航', text: '艦體已進化成試作型兵器，最後任務是把蜂巢核心拖出深空。' },
+]
+
+const missionDefs = {
+  clear: { label: '殲滅航道', reward: 260 },
+  salvage: { label: '回收資料核心', reward: 420 },
+  hunter: { label: '獵殺變形體', reward: 520 },
+  breach: { label: '突破重甲節點', reward: 620 },
+  survival: { label: '穿越伏擊帶', reward: 480 },
 }
 
 const audioState = {
@@ -291,7 +324,7 @@ function playSfx(id, detail = {}) {
     arpeggio([880, 660, 440, 220], 0.06, { type: 'square', gain: 0.06, filter: 2600, duration: 0.11 })
   }
   if (id === 'pickup') {
-    const base = { life: 620, shield: 520, credits: 740, emp: 410, nuke: 180, pulse: 500, flame: 260, laser: 900, freeze: 680 }[detail.type] || 540
+    const base = { life: 620, shield: 520, credits: 740, emp: 410, nuke: 180, pulse: 500, flame: 260, laser: 900, freeze: 680, core: 820, relic: 1040, overdrive: 560 }[detail.type] || 540
     arpeggio([base, base * 1.25], 0.04, { type: 'triangle', gain: 0.052, filter: 3600, duration: 0.09 })
   }
   if (id === 'upgrade') arpeggio([330, 495, 660, 990], 0.045, { type: 'sawtooth', gain: 0.065, filter: 4500, duration: 0.095 })
@@ -345,6 +378,7 @@ function saveProgress() {
   const progress = {
     credits: state.credits,
     empCharges: state.empCharges,
+    relics: state.relics,
     inventory: { ...state.inventory },
     upgrades: { ...upgrades },
   }
@@ -376,8 +410,75 @@ function tierColor(tier) {
   return ['#e7fbff', '#7bd6e8', '#b987ff', '#f4d35e', '#ffffff'][clamp(tier, 0, 4)]
 }
 
+function storyForWave(wave) {
+  return storyChapters[clamp(Math.floor((wave - 1) / 12), 0, storyChapters.length - 1)]
+}
+
+function missionKindForWave(wave) {
+  if (wave % 10 === 0 || wave % 15 === 0) return 'breach'
+  if (wave % 7 === 0) return 'survival'
+  if (wave % 5 === 0) return 'hunter'
+  if (wave % 3 === 0) return 'salvage'
+  return 'clear'
+}
+
+function configureMission() {
+  const story = storyForWave(state.wave)
+  const kind = missionKindForWave(state.wave)
+  state.storyTitle = story.title
+  state.storyText = story.text
+  state.missionKind = kind
+  state.missionLabel = missionDefs[kind].label
+  state.missionProgress = 0
+  state.missionTarget =
+    kind === 'salvage'
+      ? clamp(2 + Math.floor(state.wave / 6), 2, 6)
+      : kind === 'hunter'
+        ? clamp(2 + Math.floor(state.wave / 8), 2, 6)
+        : kind === 'breach'
+          ? 1
+          : kind === 'survival'
+            ? clamp(35 + state.wave * 3, 38, 160)
+            : 1
+  state.missionComplete = kind === 'clear'
+  state.missionSpawnTimer = 1.8
+}
+
+function advanceMission(amount = 1) {
+  if (state.missionComplete) return
+  state.missionProgress = clamp(state.missionProgress + amount, 0, state.missionTarget)
+  if (state.missionProgress >= state.missionTarget) {
+    state.missionComplete = true
+    state.credits += missionDefs[state.missionKind].reward + state.wave * 34
+    if (state.missionKind === 'salvage') state.relics += 1
+    if (state.missionKind === 'hunter') state.inventory.pulse += 1
+    if (state.missionKind === 'breach') state.inventory.nuke += 1
+    if (state.missionKind === 'survival') state.empCharges += 1
+    addEffect('upgrade', world.width / 2, 120, '#f4d35e', 68)
+    floatText(world.width / 2, 126, `MISSION COMPLETE +${missionDefs[state.missionKind].reward}`, '#f4d35e')
+    playSfx('waveClear')
+  }
+}
+
+function recordEnemyObjective(enemy) {
+  if (state.missionKind === 'hunter' && enemy.morphed) advanceMission(1)
+  if (state.missionKind === 'breach' && isBossType(enemy.type)) advanceMission(1)
+}
+
+function missionProgressText() {
+  if (state.missionKind === 'clear') return state.missionComplete ? '完成' : '交戰中'
+  const progress = state.missionKind === 'survival' ? Math.floor(state.missionProgress) : Math.floor(state.missionProgress)
+  const target = state.missionKind === 'survival' ? Math.ceil(state.missionTarget) : state.missionTarget
+  return `${Math.min(progress, target)}/${target}${state.missionKind === 'survival' ? '秒' : ''}`
+}
+
+function overdriveDuration() {
+  return clamp(7 + upgrades.engine * 0.08 + state.relics * 0.35, 7, 14)
+}
+
 function applyUpgradeStats() {
   player.speed = clamp(390 + upgrades.engine * 16, 390, 980)
+  player.liftSpeed = clamp(285 + upgrades.engine * 13, 285, 760)
   state.maxLives = 4 + Math.floor(upgrades.hull * 0.55)
   state.maxShield = 2 + Math.floor(upgrades.shield * 0.58)
   state.lives = clamp(state.lives, 0, state.maxLives)
@@ -416,6 +517,8 @@ function resetGame() {
   state.meteorTimer = 1.6
   state.screenFlash = 0
   state.empCharges = Math.max(2, Number(saved.empCharges) || 0)
+  state.relics = Math.max(0, Number(saved.relics) || 0)
+  state.overdriveTimer = 0
   state.inventory.nuke = Math.max(0, Number(saved.inventory?.nuke) || 0)
   state.inventory.pulse = Math.max(1, Number(saved.inventory?.pulse) || 0)
   state.inventory.flame = Math.max(0, Number(saved.inventory?.flame) || 0)
@@ -541,6 +644,9 @@ function createEnemy(type, x, y, row = 0, col = 0) {
     route,
     phase: rand(0, Math.PI * 2),
     hitFlash: 0,
+    canMorph: state.wave >= 4 && ['guard', 'sniper', 'bomber', 'tank'].includes(type),
+    morphed: false,
+    morphAt: stats.hp * 0.48,
     row,
     diving: false,
     diveT: 0,
@@ -555,6 +661,7 @@ function spawnWave() {
   powerups.length = 0
   meteors.length = 0
   state.stageMod = stageModForWave(state.wave)
+  configureMission()
   state.meteorTimer = 1.2
   if (state.stageMod === 'meteor') spawnMeteor()
   state.currentSquad = 1
@@ -619,6 +726,13 @@ function updateHud() {
   shieldEl.textContent = `${state.shield}/${state.maxShield}`
   weaponEl.textContent = `Lv.${upgrades.weapon}`
   comboEl.textContent = state.combo > 0 ? `${state.combo}x` : '0'
+  storyTitleEl.textContent = state.storyTitle || storyChapters[0].title
+  storyTextEl.textContent = state.storyText || storyChapters[0].text
+  const missionLabel = state.missionLabel || missionDefs.clear.label
+  missionLabelEl.textContent = state.missionComplete ? `${missionLabel} 完成` : missionLabel
+  missionProgressEl.textContent = missionProgressText()
+  relicsEl.textContent = state.relics.toString()
+  overdriveEl.textContent = state.overdriveTimer > 0 ? `${Math.ceil(state.overdriveTimer)}秒` : '待命'
   specialButton.textContent = state.specialCooldown > 0 ? `EMP ${Math.ceil(state.specialCooldown)}` : `EMP ${state.empCharges}`
   specialButton.disabled = state.empCharges <= 0 || state.specialCooldown > 0 || !state.running || state.over || state.betweenWaves
   syncUpgradeCards()
@@ -814,6 +928,24 @@ function startDive(enemy) {
   enemy.diveT = 0
 }
 
+function morphEnemy(enemy) {
+  if (!enemy.canMorph || enemy.morphed || enemy.hp > enemy.morphAt) return
+  enemy.morphed = true
+  enemy.maxHp += Math.ceil(2 + state.wave * 0.35)
+  enemy.hp += Math.ceil(enemy.maxHp * 0.28)
+  enemy.width += 16
+  enemy.height += 12
+  enemy.fireMode = ['fan', 'wave', 'spiral', 'rail', 'mine'][(state.wave + enemy.row) % 5]
+  enemy.route = ['orbit', 'rush', 'split', 'swoop'][(state.wave + enemy.row) % 4]
+  enemy.score = Math.floor(enemy.score * 1.45)
+  enemy.credit = Math.floor(enemy.credit * 1.35)
+  enemy.hitFlash = 0.32
+  state.screenShake = Math.max(state.screenShake, 0.22)
+  addEffect('upgrade', enemy.x, enemy.y, '#e85d75', 46)
+  floatText(enemy.x, enemy.y - 28, 'MORPH', '#e85d75')
+  playSfx('evolve')
+}
+
 function spawnExplosion(x, y, color, count = 14) {
   for (let index = 0; index < count; index += 1) {
     particles.push({
@@ -867,7 +999,9 @@ function spawnPowerup(type = '') {
                 : roll > 0.16
                   ? 'shield'
                   : roll > 0.06
-                    ? 'credits'
+                    ? state.wave >= 6 && roll > 0.09
+                      ? 'overdrive'
+                      : 'credits'
                     : 'emp')
   powerups.push({ x: rand(80, world.width - 80), y: -28, width: 32, height: 32, vy: 105, type: chosen })
 }
@@ -881,7 +1015,7 @@ function maybeDropTreasure(enemy) {
     isBossType(enemy.type)
       ? 'nuke'
       : roll > 0.92
-        ? 'nuke'
+        ? (state.wave >= 10 ? 'relic' : 'nuke')
         : roll > 0.8
           ? 'pulse'
           : roll > 0.67
@@ -911,13 +1045,19 @@ function updateStars(dt) {
 
 function updatePlayer(dt) {
   const move = (input.right ? 1 : 0) - (input.left ? 1 : 0)
+  const lift = (input.down ? 1 : 0) - (input.up ? 1 : 0)
   const stageSpeed = state.stageMod === 'solar' ? 1.18 : 1
-  player.x = clamp(player.x + move * player.speed * stageSpeed * dt, 36, world.width - 36)
+  const overdrive = state.overdriveTimer > 0 ? 1.18 : 1
+  player.x = clamp(player.x + move * player.speed * stageSpeed * overdrive * dt, 36, world.width - 36)
+  const topLimit = state.missionKind === 'survival' || state.missionKind === 'salvage' ? world.height * 0.42 : world.height * 0.52
+  player.y = clamp(player.y + lift * player.liftSpeed * stageSpeed * overdrive * dt, topLimit, world.height - 46)
   player.cooldown = Math.max(0, player.cooldown - dt)
   player.invincible = Math.max(0, player.invincible - dt)
   state.specialCooldown = Math.max(0, state.specialCooldown - dt)
   state.droneTimer = Math.max(0, state.droneTimer - dt)
   state.comboTimer = Math.max(0, state.comboTimer - dt)
+  state.overdriveTimer = Math.max(0, state.overdriveTimer - dt)
+  if (state.missionKind === 'survival' && !state.missionComplete) advanceMission(dt)
   if (state.comboTimer === 0) state.combo = 0
 
   if (input.fire) fireBullet()
@@ -973,6 +1113,7 @@ function updateEnemies(dt) {
 
   for (const enemy of enemies) {
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt)
+    morphEnemy(enemy)
     if (isBossType(enemy.type)) {
       const bossSpeed = enemy.type === 'finalBoss' ? 34 : enemy.type === 'majorBoss' ? 46 : 58
       enemy.baseX += (bossSpeed + state.wave * 1.2) * state.enemyDirection * dt
@@ -1038,6 +1179,13 @@ function updateEnemies(dt) {
 
 function updatePowerups(dt) {
   state.powerupTimer -= dt
+  if (state.missionKind === 'salvage' && !state.missionComplete) {
+    state.missionSpawnTimer -= dt
+    if (state.missionSpawnTimer <= 0) {
+      spawnPowerup('core')
+      state.missionSpawnTimer = rand(3.2, 5.4)
+    }
+  }
   if (state.powerupTimer <= 0) {
     spawnPowerup()
     state.powerupTimer = rand(8, 13)
@@ -1055,6 +1203,18 @@ function updatePowerups(dt) {
       if (powerup.type === 'life') state.lives = clamp(state.lives + 1, 0, state.maxLives)
       if (powerup.type === 'shield') state.shield = clamp(state.shield + 1, 0, state.maxShield)
       if (powerup.type === 'credits') state.credits += 220 + state.wave * 28
+      if (powerup.type === 'core') {
+        state.credits += 120 + state.wave * 18
+        advanceMission(1)
+      }
+      if (powerup.type === 'relic') {
+        state.relics += 1
+        state.credits += 500 + state.wave * 40
+      }
+      if (powerup.type === 'overdrive') {
+        state.overdriveTimer = overdriveDuration()
+        state.specialCooldown = 0
+      }
       if (powerup.type === 'emp') {
         state.specialCooldown = 0
         state.empCharges += 1
@@ -1175,6 +1335,7 @@ function resolveCollisions() {
         const killCredits = Math.round(enemy.credit * (1 + Math.min(state.combo, 60) * 0.01))
         state.score += killScore
         state.credits += killCredits
+        recordEnemyObjective(enemy)
         floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
         spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 48 : 18)
         enemyDeathSound(enemy.type)
@@ -1223,6 +1384,7 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
     const comboMultiplier = registerKill()
     state.score += Math.floor(enemy.score * multiplier * comboMultiplier)
     state.credits += Math.floor(enemy.credit * multiplier * (1 + Math.min(state.combo, 60) * 0.01))
+    recordEnemyObjective(enemy)
     maybeDropTreasure(enemy)
     spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 42 : 16)
     enemyDeathSound(enemy.type)
@@ -1235,13 +1397,14 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
 function completeWave() {
   state.betweenWaves = true
   state.waveBonus = 420 + state.wave * 120 + state.squadsTotal * 90
+  const missionReward = state.missionComplete && state.missionKind !== 'clear' ? missionDefs[state.missionKind].reward + state.wave * 34 : 0
   state.score += 800 + state.wave * 80
   state.credits += state.waveBonus
   if (state.wave % 2 === 0) state.empCharges += 1
   player.invincible = 1.2
   playSfx('waveClear')
   waveTitle.textContent = state.wave % 5 === 0 ? 'Boss 擊破' : `第 ${state.wave} 波清除`
-  waveText.textContent = `完成 ${state.squadsTotal} 個敵群，獲得 ${state.waveBonus} 晶片。現在應該至少能升級一到兩項，再進入第 ${state.wave + 1} 波。`
+  waveText.textContent = `完成 ${state.squadsTotal} 個敵群，清波獎勵 ${state.waveBonus} 晶片。${state.missionLabel}：${state.missionComplete ? `已結算 ${missionReward} 晶片` : '未完成'}。遺物 ${state.relics}，下一波第 ${state.wave + 1} 波。`
   waveOverlay.classList.add('active')
   updateHud()
   saveProgress()
@@ -1293,6 +1456,7 @@ function useSpecial() {
     if (enemy.hp <= 0) {
       state.score += Math.floor(enemy.score * 0.7)
       state.credits += Math.floor(enemy.credit * 0.7)
+      recordEnemyObjective(enemy)
       enemyDeathSound(enemy.type)
       enemies.splice(index, 1)
     }
@@ -1321,6 +1485,7 @@ function useOneShot(type) {
       if (enemy.hp <= 0) {
         state.score += Math.floor(enemy.score * 0.85)
         state.credits += Math.floor(enemy.credit * 0.85)
+        recordEnemyObjective(enemy)
         maybeDropTreasure(enemy)
         enemyDeathSound(enemy.type)
         enemies.splice(index, 1)
@@ -1450,6 +1615,9 @@ function powerupColor(type) {
     flame: '#ff8b67',
     laser: '#7bd6e8',
     freeze: '#9ad9ff',
+    core: '#35c4df',
+    relic: '#ffffff',
+    overdrive: '#f4d35e',
   }
   return colors[type] ?? '#35c4df'
 }
@@ -1465,6 +1633,9 @@ function treasureLabel(type) {
     flame: '火焰',
     laser: '雷射',
     freeze: '凍結',
+    core: 'CORE',
+    relic: 'RELIC',
+    overdrive: '超載',
   }
   return labels[type] ?? '寶箱'
 }
@@ -1881,6 +2052,29 @@ function drawPowerupIcon(type) {
       ctx.stroke()
       ctx.restore()
     }
+  } else if (type === 'core') {
+    ctx.strokeRect(-10, -10, 20, 20)
+    ctx.fillRect(-4, -4, 8, 8)
+  } else if (type === 'relic') {
+    ctx.beginPath()
+    ctx.moveTo(0, -15)
+    ctx.lineTo(12, -4)
+    ctx.lineTo(8, 13)
+    ctx.lineTo(-8, 13)
+    ctx.lineTo(-12, -4)
+    ctx.closePath()
+    ctx.stroke()
+    ctx.fillRect(-3, -3, 6, 6)
+  } else if (type === 'overdrive') {
+    ctx.beginPath()
+    ctx.moveTo(-4, -15)
+    ctx.lineTo(10, -2)
+    ctx.lineTo(2, -2)
+    ctx.lineTo(7, 15)
+    ctx.lineTo(-10, -1)
+    ctx.lineTo(-1, -1)
+    ctx.closePath()
+    ctx.fill()
   }
 }
 
@@ -1893,13 +2087,13 @@ function drawPowerups() {
     ctx.shadowColor = powerupColor(powerup.type)
     ctx.fillStyle = powerupColor(powerup.type)
     ctx.beginPath()
-    if (powerup.type === 'credits') {
+    if (powerup.type === 'credits' || powerup.type === 'core' || powerup.type === 'relic') {
       ctx.moveTo(0, -18)
       ctx.lineTo(18, 0)
       ctx.lineTo(0, 18)
       ctx.lineTo(-18, 0)
       ctx.closePath()
-    } else if (powerup.type === 'shield' || powerup.type === 'emp' || powerup.type === 'pulse') {
+    } else if (powerup.type === 'shield' || powerup.type === 'emp' || powerup.type === 'pulse' || powerup.type === 'overdrive') {
       for (let index = 0; index < 6; index += 1) {
         const angle = (index / 6) * Math.PI * 2 - Math.PI / 2
         const x = Math.cos(angle) * 18
@@ -2124,6 +2318,16 @@ window.addEventListener('keydown', (event) => {
     if (!input.right) playSfx('move')
     input.right = true
   }
+  if (event.code === 'ArrowUp' || event.code === 'KeyW') {
+    if (!input.up) playSfx('move')
+    input.up = true
+    event.preventDefault()
+  }
+  if (event.code === 'ArrowDown' || event.code === 'KeyS') {
+    if (!input.down) playSfx('move')
+    input.down = true
+    event.preventDefault()
+  }
   if (event.code === 'Space') {
     input.fire = true
     fireBullet()
@@ -2146,6 +2350,8 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => {
   if (event.code === 'ArrowLeft' || event.code === 'KeyA') input.left = false
   if (event.code === 'ArrowRight' || event.code === 'KeyD') input.right = false
+  if (event.code === 'ArrowUp' || event.code === 'KeyW') input.up = false
+  if (event.code === 'ArrowDown' || event.code === 'KeyS') input.down = false
   if (event.code === 'Space') input.fire = false
 })
 
@@ -2185,12 +2391,15 @@ for (const id of upgradeOrder) {
   })
 }
 setButtonInput('#leftButton', 'left')
+setButtonInput('#upButton', 'up')
 setButtonInput('#rightButton', 'right')
+setButtonInput('#downButton', 'down')
 setButtonInput('#fireButton', 'fire')
 
 resizeCanvas()
 spawnStars()
 applyUpgradeStats()
+configureMission()
 updateHud()
 if (new URLSearchParams(window.location.search).has('autostart')) resetGame()
 requestAnimationFrame(frame)

@@ -47,7 +47,7 @@
           <div>
             <p>SPACE BEE SHOOTER</p>
             <h1>星艦蜂群</h1>
-            <span>擊落外星蜂群取得晶片，波次之間升級武器、飛船、護盾、僚機與橫移速度。</span>
+            <span>擊落外星蜂群取得晶片，波次之間升級武器、飛船、護盾、僚機與推進機動。</span>
             <button id="startButton" type="button">開始遊戲</button>
           </div>
         </div>
@@ -71,10 +71,32 @@
 
       <section class="controls" aria-label="Game controls">
         <button id="leftButton" type="button" aria-label="Move left">←</button>
+        <button id="upButton" type="button" aria-label="Move up">↑</button>
         <button id="fireButton" type="button" aria-label="Fire">射擊</button>
+        <button id="downButton" type="button" aria-label="Move down">↓</button>
         <button id="rightButton" type="button" aria-label="Move right">→</button>
         <button id="specialButton" type="button" aria-label="EMP special">EMP</button>
         <button id="pauseButton" type="button" aria-label="Pause">暫停</button>
+      </section>
+
+      <section class="mission-panel" aria-label="Mission status">
+        <article>
+          <span id="storyTitle">第零章：晶片求救訊號</span>
+          <strong id="missionLabel">殲滅航道</strong>
+          <small id="storyText">外環蜂巢正在吞噬失聯殖民站，艦載 AI 要你回收最後的航路資料。</small>
+        </article>
+        <div>
+          <span>任務進度</span>
+          <strong id="missionProgress">0/1</strong>
+        </div>
+        <div>
+          <span>遺物</span>
+          <strong id="relics">0</strong>
+        </div>
+        <div>
+          <span>超載</span>
+          <strong id="overdrive">待命</strong>
+        </div>
       </section>
 
       <section class="arsenal-panel" aria-label="One shot weapons">
@@ -93,9 +115,9 @@
           <button class="upgrade-button" data-upgrade="weapon" type="button">升級</button>
         </article>
         <article>
-          <span>引擎橫移</span>
+          <span>引擎機動</span>
           <strong id="engineLevel">Lv.1</strong>
-          <small>提高左右移動速度</small>
+          <small>提高水平與垂直機動，延長超載</small>
           <button class="upgrade-button" data-upgrade="engine" type="button">升級</button>
         </article>
         <article>
@@ -120,6 +142,8 @@
 
       <aside class="tips" aria-label="Keyboard tips">
         <span>A / ← 左移</span>
+        <span>W / ↑ 上移</span>
+        <span>S / ↓ 下移</span>
         <span>D / → 右移</span>
         <span>Space 射擊</span>
         <span>X 使用 EMP</span>

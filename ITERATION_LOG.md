@@ -823,3 +823,7 @@
 - V818: Completed enemy-pattern polish checkpoint 98.
 - V819: Completed pickup-art polish checkpoint 99.
 - V820: Completed the requested 200-version visual audio gameplay evolution batch.
+- V821: Fixed pre-start mission HUD initialization so mission labels no longer render blank.
+- V822: Extended engine upgrades to improve vertical thrust as well as horizontal movement.
+- V823: Scaled overdrive duration with engine level and recovered relics.
+- V824: Updated UI and README copy for four-way movement, missions, relics, and overdrive.
