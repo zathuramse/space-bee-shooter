@@ -269,8 +269,10 @@ function playSfx(id, detail = {}) {
   if (id === 'pause') tone(detail.paused ? 220 : 440, 0.08, { type: 'triangle', gain: 0.05, slide: detail.paused ? -80 : 160 })
   if (id === 'move') tone(150, 0.07, { type: 'sawtooth', gain: 0.035, filter: 900, slide: 42 })
   if (id === 'fire') {
-    tone(760 + upgrades.weapon * 8, 0.045, { type: 'square', gain: 0.035, filter: 3600, slide: 480 })
-    tone(190, 0.035, { type: 'triangle', gain: 0.02, filter: 900, delay: 0.012 })
+    const tier = weaponTier()
+    tone(760 + upgrades.weapon * 8 + tier * 90, 0.045, { type: tier >= 3 ? 'sawtooth' : 'square', gain: 0.034 + tier * 0.006, filter: 3600 + tier * 420, slide: 480 + tier * 120 })
+    tone(190 + tier * 28, 0.04, { type: 'triangle', gain: 0.02 + tier * 0.004, filter: 900 + tier * 180, delay: 0.012 })
+    if (tier >= 2) tone(1240 + tier * 140, 0.035, { type: 'triangle', gain: 0.018, filter: 5200, delay: 0.018, slide: -120 })
   }
   if (id === 'enemyFire') tone(210 + state.wave * 4, 0.06, { type: 'sawtooth', gain: 0.028, filter: 1400, slide: -70 })
   if (id === 'bulletHit') tone(320, 0.035, { type: 'triangle', gain: 0.024, filter: 1800, slide: -130 })
@@ -293,6 +295,10 @@ function playSfx(id, detail = {}) {
     arpeggio([base, base * 1.25], 0.04, { type: 'triangle', gain: 0.052, filter: 3600, duration: 0.09 })
   }
   if (id === 'upgrade') arpeggio([330, 495, 660, 990], 0.045, { type: 'sawtooth', gain: 0.065, filter: 4500, duration: 0.095 })
+  if (id === 'evolve') {
+    arpeggio([220, 330, 550, 880, 1320], 0.055, { type: 'sawtooth', gain: 0.08, filter: 5200, duration: 0.13 })
+    noise(0.22, { gain: 0.055, filter: 2600, q: 8 })
+  }
   if (id === 'shieldHit') {
     tone(540, 0.12, { type: 'triangle', gain: 0.065, filter: 2600, slide: -210 })
     noise(0.09, { gain: 0.03, filter: 2400, q: 8 })
@@ -352,6 +358,22 @@ function saveProgress() {
 function upgradeCost(id) {
   const def = upgradeDefs[id]
   return Math.round(def.base + Math.pow(upgrades[id], 1.18) * def.step)
+}
+
+function tierFor(level) {
+  return clamp(Math.floor(Math.max(0, level - 1) / 10), 0, 4)
+}
+
+function shipTier() {
+  return Math.max(tierFor(upgrades.weapon), tierFor(upgrades.hull), tierFor(upgrades.shield), tierFor(upgrades.engine))
+}
+
+function weaponTier() {
+  return tierFor(upgrades.weapon)
+}
+
+function tierColor(tier) {
+  return ['#e7fbff', '#7bd6e8', '#b987ff', '#f4d35e', '#ffffff'][clamp(tier, 0, 4)]
 }
 
 function applyUpgradeStats() {
@@ -495,7 +517,11 @@ function enemyStats(type) {
 function createEnemy(type, x, y, row = 0, col = 0) {
   const stats = enemyStats(type)
   const routes = ['drift', 'zigzag', 'swoop', 'orbit', 'ladder', 'split', 'rush']
-  const fireModes = ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy']
+  const fireModes = state.wave >= 9
+    ? ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy', 'spiral', 'rail', 'mine', 'wave', 'fan']
+    : state.wave >= 5
+      ? ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy', 'fan', 'wave']
+      : ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy']
   const route = isBossType(type) ? 'boss' : routes[(state.wave + state.currentSquad + row + col) % routes.length]
   const fireMode = isBossType(type) ? stats.pattern : state.wave < 3 ? stats.pattern : fireModes[(state.wave + state.currentSquad + row * 2 + col) % fireModes.length]
   return {
@@ -625,8 +651,10 @@ function buyUpgrade(id) {
   if (!def || upgrades[id] >= def.max) return
   const cost = upgradeCost(id)
   if (state.credits < cost) return
+  const previousTier = tierFor(upgrades[id])
   state.credits -= cost
   upgrades[id] += 1
+  const nextTier = tierFor(upgrades[id])
 
   const previousMaxLives = state.maxLives
   const previousMaxShield = state.maxShield
@@ -634,7 +662,9 @@ function buyUpgrade(id) {
   if (state.maxLives > previousMaxLives) state.lives += state.maxLives - previousMaxLives
   if (state.maxShield > previousMaxShield) state.shield += state.maxShield - previousMaxShield
   spawnExplosion(player.x, player.y - 10, '#35c4df', 18)
-  playSfx('upgrade', { id })
+  addEffect('upgrade', player.x, player.y - 18, tierColor(nextTier), 38 + nextTier * 13)
+  floatText(player.x, player.y - 86, nextTier > previousTier ? 'SYSTEM EVOLVE' : 'UPGRADE', tierColor(nextTier))
+  playSfx(nextTier > previousTier ? 'evolve' : 'upgrade', { id })
   updateHud()
   saveProgress()
 }
@@ -642,17 +672,24 @@ function buyUpgrade(id) {
 function bulletPattern() {
   const level = upgrades.weapon
   const bonus = Math.floor((level - 1) / 7)
-  if (level === 1) return [{ x: 0, dx: 0, damage: 1 + bonus, size: 8 }]
-  if (level === 2) return [{ x: -12, dx: 0, damage: 1 + bonus, size: 8 }, { x: 12, dx: 0, damage: 1 + bonus, size: 8 }]
-  if (level === 3) return [{ x: -18, dx: -70, damage: 1 + bonus, size: 8 }, { x: 0, dx: 0, damage: 1 + bonus, size: 9 }, { x: 18, dx: 70, damage: 1 + bonus, size: 8 }]
-  if (level === 4) return [{ x: -24, dx: -115, damage: 1 + bonus, size: 8 }, { x: -8, dx: -25, damage: 1 + bonus, size: 8 }, { x: 8, dx: 25, damage: 1 + bonus, size: 8 }, { x: 24, dx: 115, damage: 1 + bonus, size: 8 }]
-  return [
+  const tier = weaponTier()
+  let shots
+  if (level === 1) shots = [{ x: 0, dx: 0, damage: 1 + bonus, size: 8 }]
+  else if (level === 2) shots = [{ x: -12, dx: 0, damage: 1 + bonus, size: 8 }, { x: 12, dx: 0, damage: 1 + bonus, size: 8 }]
+  else if (level === 3) shots = [{ x: -18, dx: -70, damage: 1 + bonus, size: 8 }, { x: 0, dx: 0, damage: 1 + bonus, size: 9 }, { x: 18, dx: 70, damage: 1 + bonus, size: 8 }]
+  else if (level === 4) shots = [{ x: -24, dx: -115, damage: 1 + bonus, size: 8 }, { x: -8, dx: -25, damage: 1 + bonus, size: 8 }, { x: 8, dx: 25, damage: 1 + bonus, size: 8 }, { x: 24, dx: 115, damage: 1 + bonus, size: 8 }]
+  else shots = [
     { x: -28, dx: -145, damage: 1 + bonus, size: 8 },
     { x: -12, dx: -48, damage: 1 + bonus, size: 8 },
     { x: 0, dx: 0, damage: (level >= 6 ? 3 : 2) + bonus, size: level >= 6 ? 13 : 11 },
     { x: 12, dx: 48, damage: 1 + bonus, size: 8 },
     { x: 28, dx: 145, damage: 1 + bonus, size: 8 },
   ]
+  if (tier >= 1) shots.push({ x: -40, dx: -210, damage: 1 + bonus, size: 7, color: '#7bd6e8', shape: 'needle' }, { x: 40, dx: 210, damage: 1 + bonus, size: 7, color: '#7bd6e8', shape: 'needle' })
+  if (tier >= 2) shots.push({ x: 0, dx: 0, damage: 2 + bonus, size: 16, color: '#b987ff', shape: 'orb' })
+  if (tier >= 3) shots.push({ x: -58, dx: -90, damage: 2 + bonus, size: 10, color: '#f4d35e', shape: 'diamond' }, { x: 58, dx: 90, damage: 2 + bonus, size: 10, color: '#f4d35e', shape: 'diamond' })
+  if (tier >= 4) shots.push({ x: -72, dx: -260, damage: 3 + bonus, size: 11, color: '#ffffff', shape: 'orb' }, { x: 72, dx: 260, damage: 3 + bonus, size: 11, color: '#ffffff', shape: 'orb' })
+  return shots.map((shot) => ({ ...shot, color: shot.color || (shot.damage > 1 ? tierColor(tier) : '#e7fbff'), tier }))
 }
 
 function fireBullet() {
@@ -669,11 +706,13 @@ function fireBullet() {
       vy: -680 - upgrades.weapon * 18,
       damage: shot.damage,
       source: 'player',
-      color: shot.damage > 1 ? '#f4d35e' : '#e7fbff',
+      color: shot.color,
+      shape: shot.shape || 'bolt',
+      tier: shot.tier,
     })
   }
 
-  addEffect('muzzle', player.x, player.y - 30, '#e7fbff', 18 + upgrades.weapon)
+  addEffect('muzzle', player.x, player.y - 30, tierColor(weaponTier()), 18 + upgrades.weapon)
   playSfx('fire')
   player.cooldown = cooldown
 }
@@ -723,6 +762,24 @@ function enemyFire(enemy) {
     for (const angle of [-0.62, -0.28, 0.28, 0.62]) spawnEnemyBullet(enemy.x, enemy.y + 18, Math.sin(angle) * speed, Math.cos(angle) * speed, 11, '#ff8b67')
   } else if (pattern === 'heavy') {
     for (const angle of [-0.22, 0.22]) spawnEnemyBullet(enemy.x, enemy.y + 20, Math.sin(angle) * (speed + 25), Math.cos(angle) * (speed + 25), 15, '#b987ff')
+  } else if (pattern === 'fan') {
+    for (const angle of [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72]) spawnEnemyBullet(enemy.x, enemy.y + 22, Math.sin(angle) * (speed + 15), Math.cos(angle) * (speed + 15), 9, '#7bd6e8')
+  } else if (pattern === 'wave') {
+    const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 40)
+    for (const offset of [-90, -45, 0, 45, 90]) spawnEnemyBullet(enemy.x, enemy.y + 18, aim.vx + offset, aim.vy, 10, '#35c4df')
+  } else if (pattern === 'spiral') {
+    const spin = performance.now() / 360 + enemy.phase
+    for (let index = 0; index < 6; index += 1) {
+      const angle = spin + (index / 6) * Math.PI * 2
+      spawnEnemyBullet(enemy.x, enemy.y + 24, Math.cos(angle) * (speed * 0.72), Math.sin(angle) * (speed * 0.72), 10, index % 2 ? '#b987ff' : '#f4d35e')
+    }
+  } else if (pattern === 'rail') {
+    const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 230)
+    spawnEnemyBullet(enemy.x, enemy.y + 20, aim.vx, aim.vy, 7, '#ffffff')
+    spawnEnemyBullet(enemy.x - 12, enemy.y + 20, aim.vx * 0.96, aim.vy, 6, '#9ad9ff')
+    spawnEnemyBullet(enemy.x + 12, enemy.y + 20, aim.vx * 0.96, aim.vy, 6, '#9ad9ff')
+  } else if (pattern === 'mine') {
+    spawnEnemyBullet(enemy.x, enemy.y + 24, rand(-38, 38), speed * 0.46, 22, '#e85d75')
   } else if (pattern === 'miniBoss') {
     for (const angle of [-0.52, -0.26, 0, 0.26, 0.52]) spawnEnemyBullet(enemy.x, enemy.y + 34, Math.sin(angle) * (speed + 30), Math.cos(angle) * (speed + 30), 12, '#f4d35e')
     const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 95)
@@ -1476,6 +1533,7 @@ function drawBackground() {
 function drawPlayer() {
   ctx.save()
   ctx.translate(player.x, player.y)
+  const tier = shipTier()
   const tilt = ((input.right ? 1 : 0) - (input.left ? 1 : 0)) * 0.12
   ctx.rotate(tilt)
   if (player.invincible > 0 && Math.floor(player.invincible * 12) % 2 === 0) ctx.globalAlpha = 0.42
@@ -1492,16 +1550,44 @@ function drawPlayer() {
   ctx.closePath()
   ctx.fill()
 
-  ctx.fillStyle = '#35c4df'
+  if (tier >= 2) {
+    ctx.strokeStyle = `${tierColor(tier)}88`
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 42 + tier * 4, 38 + tier * 3, 0, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  ctx.fillStyle = tierColor(Math.max(1, tier))
+  ctx.shadowBlur = 12 + tier * 4
+  ctx.shadowColor = tierColor(tier)
   ctx.beginPath()
   ctx.moveTo(0, -31)
-  ctx.lineTo(30, 22)
+  ctx.lineTo(30 + tier * 4, 22)
   ctx.lineTo(10, 13)
   ctx.lineTo(0, 25)
   ctx.lineTo(-10, 13)
-  ctx.lineTo(-30, 22)
+  ctx.lineTo(-30 - tier * 4, 22)
   ctx.closePath()
   ctx.fill()
+  ctx.shadowBlur = 0
+
+  if (tier >= 1) {
+    ctx.fillStyle = '#7bd6e8'
+    ctx.fillRect(-34 - tier * 3, 9, 16 + tier * 2, 6)
+    ctx.fillRect(18 + tier, 9, 16 + tier * 2, 6)
+  }
+
+  if (tier >= 3) {
+    ctx.strokeStyle = '#f4d35e'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(-45 - tier * 3, 20)
+    ctx.lineTo(-62 - tier * 4, 4)
+    ctx.moveTo(45 + tier * 3, 20)
+    ctx.lineTo(62 + tier * 4, 4)
+    ctx.stroke()
+  }
 
   ctx.fillStyle = '#f4d35e'
   ctx.beginPath()
@@ -1527,6 +1613,8 @@ function drawPlayer() {
 function drawDrones() {
   if (upgrades.drone <= 0) return
   const time = performance.now() / 420
+  const tier = tierFor(upgrades.drone)
+  const color = tierColor(tier)
   const droneCount = clamp(1 + Math.floor(upgrades.drone / 8), 1, 8)
   for (let index = 0; index < droneCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1
@@ -1534,11 +1622,18 @@ function drawDrones() {
     const x = side * 38 * lane + Math.sin(time + index) * 5
     const y = 8 + lane * 8 + Math.cos(time + index) * 4
     ctx.shadowBlur = 12
-    ctx.shadowColor = '#7fe58b'
-    ctx.fillStyle = '#7fe58b'
+    ctx.shadowColor = color
+    ctx.fillStyle = color
     ctx.beginPath()
-    ctx.ellipse(x, y, 8, 6, 0, 0, Math.PI * 2)
+    ctx.ellipse(x, y, 8 + tier, 6 + tier * 0.6, 0, 0, Math.PI * 2)
     ctx.fill()
+    if (tier >= 2) {
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(x, y, 12 + tier, 0, Math.PI * 2)
+      ctx.stroke()
+    }
   }
   ctx.shadowBlur = 0
 }
@@ -1632,9 +1727,28 @@ function drawBullets() {
     ctx.fillStyle = bullet.color
     ctx.shadowColor = bullet.color
     ctx.globalAlpha = 0.36
-    ctx.fillRect(bullet.x + bullet.width / 2 - 1, bullet.y + bullet.height, 2, 28)
+    ctx.fillRect(bullet.x + bullet.width / 2 - 1, bullet.y + bullet.height, 2 + bullet.tier, 28 + bullet.tier * 8)
     ctx.globalAlpha = 1
-    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+    if (bullet.shape === 'orb') {
+      ctx.beginPath()
+      ctx.arc(bullet.x + bullet.width / 2, bullet.y + bullet.height / 2, bullet.width * 0.72, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.78)'
+      ctx.beginPath()
+      ctx.arc(bullet.x + bullet.width / 2, bullet.y + bullet.height / 2, bullet.width * 0.32, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (bullet.shape === 'diamond') {
+      ctx.beginPath()
+      ctx.moveTo(bullet.x + bullet.width / 2, bullet.y)
+      ctx.lineTo(bullet.x + bullet.width, bullet.y + bullet.height / 2)
+      ctx.lineTo(bullet.x + bullet.width / 2, bullet.y + bullet.height)
+      ctx.lineTo(bullet.x, bullet.y + bullet.height / 2)
+      ctx.closePath()
+      ctx.fill()
+    } else {
+      ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+      if (bullet.shape === 'needle') ctx.fillRect(bullet.x + bullet.width / 2 - 1, bullet.y - 9, 2, 10)
+    }
   }
   for (const bullet of enemyBullets) {
     ctx.fillStyle = bullet.color
@@ -1647,32 +1761,126 @@ function drawBullets() {
 }
 
 function drawWeaponEffects() {
+  const tier = weaponTier()
   if (state.flameTimer > 0) {
     const flicker = 16 + Math.sin(performance.now() / 58) * 10
     const flame = ctx.createLinearGradient(player.x, player.y, player.x, player.y - 330)
     flame.addColorStop(0, 'rgba(255, 139, 103, 0.75)')
     flame.addColorStop(0.45, 'rgba(244, 211, 94, 0.32)')
-    flame.addColorStop(1, 'rgba(232, 93, 117, 0)')
+    flame.addColorStop(1, tier >= 3 ? 'rgba(185, 135, 255, 0)' : 'rgba(232, 93, 117, 0)')
     ctx.fillStyle = flame
     ctx.beginPath()
     ctx.moveTo(player.x - 18, player.y - 20)
-    ctx.lineTo(player.x - 150 - flicker, player.y - 330)
-    ctx.lineTo(player.x + 150 + flicker, player.y - 330)
+    ctx.lineTo(player.x - 150 - flicker - tier * 24, player.y - 330 - tier * 16)
+    ctx.lineTo(player.x + 150 + flicker + tier * 24, player.y - 330 - tier * 16)
     ctx.lineTo(player.x + 18, player.y - 20)
     ctx.closePath()
     ctx.fill()
+    if (tier >= 2) {
+      ctx.strokeStyle = 'rgba(244, 211, 94, 0.55)'
+      ctx.lineWidth = 2
+      for (let index = -1; index <= 1; index += 1) {
+        ctx.beginPath()
+        ctx.moveTo(player.x + index * 42, player.y - 20)
+        ctx.lineTo(player.x + index * 72, player.y - 330 - tier * 12)
+        ctx.stroke()
+      }
+    }
   }
 
   if (state.laserTimer > 0) {
     ctx.save()
     ctx.globalAlpha = 0.68 + Math.sin(performance.now() / 80) * 0.12
     ctx.shadowBlur = 22
-    ctx.shadowColor = '#7bd6e8'
-    ctx.fillStyle = '#7bd6e8'
-    ctx.fillRect(player.x - 8, 0, 16, player.y)
+    ctx.shadowColor = tierColor(tier)
+    ctx.fillStyle = tierColor(tier)
+    ctx.fillRect(player.x - 8 - tier * 2, 0, 16 + tier * 4, player.y)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
     ctx.fillRect(player.x - 3, 0, 6, player.y)
+    if (tier >= 2) {
+      ctx.fillStyle = 'rgba(185, 135, 255, 0.5)'
+      ctx.fillRect(player.x - 28, 0, 5, player.y)
+      ctx.fillRect(player.x + 23, 0, 5, player.y)
+    }
     ctx.restore()
+  }
+}
+
+function drawPowerupIcon(type) {
+  ctx.lineWidth = 3
+  ctx.strokeStyle = '#041016'
+  ctx.fillStyle = '#041016'
+  if (type === 'life') {
+    ctx.fillRect(-4, -12, 8, 24)
+    ctx.fillRect(-12, -4, 24, 8)
+  } else if (type === 'shield') {
+    ctx.beginPath()
+    for (let index = 0; index < 6; index += 1) {
+      const angle = (index / 6) * Math.PI * 2 - Math.PI / 2
+      const x = Math.cos(angle) * 12
+      const y = Math.sin(angle) * 12
+      if (index === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.closePath()
+    ctx.stroke()
+  } else if (type === 'credits') {
+    ctx.beginPath()
+    ctx.moveTo(0, -14)
+    ctx.lineTo(14, 0)
+    ctx.lineTo(0, 14)
+    ctx.lineTo(-14, 0)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = powerupColor(type)
+    ctx.font = '900 12px system-ui'
+    ctx.fillText('$', 0, 1)
+  } else if (type === 'emp' || type === 'pulse') {
+    ctx.beginPath()
+    ctx.arc(0, 0, 12, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(0, 0, 5, 0, Math.PI * 2)
+    ctx.fill()
+  } else if (type === 'nuke') {
+    for (let index = 0; index < 3; index += 1) {
+      ctx.save()
+      ctx.rotate((index / 3) * Math.PI * 2)
+      ctx.beginPath()
+      ctx.moveTo(0, -3)
+      ctx.lineTo(12, -13)
+      ctx.lineTo(7, 5)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+    ctx.beginPath()
+    ctx.arc(0, 0, 4, 0, Math.PI * 2)
+    ctx.fill()
+  } else if (type === 'flame') {
+    ctx.beginPath()
+    ctx.moveTo(0, -15)
+    ctx.bezierCurveTo(13, -3, 9, 14, 0, 15)
+    ctx.bezierCurveTo(-11, 9, -12, -3, 0, -15)
+    ctx.fill()
+  } else if (type === 'laser') {
+    ctx.beginPath()
+    ctx.moveTo(-4, -15)
+    ctx.lineTo(12, -3)
+    ctx.lineTo(4, 15)
+    ctx.lineTo(-12, 3)
+    ctx.closePath()
+    ctx.fill()
+  } else if (type === 'freeze') {
+    for (let index = 0; index < 6; index += 1) {
+      ctx.save()
+      ctx.rotate((index / 6) * Math.PI * 2)
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.lineTo(0, -15)
+      ctx.stroke()
+      ctx.restore()
+    }
   }
 }
 
@@ -1685,14 +1893,29 @@ function drawPowerups() {
     ctx.shadowColor = powerupColor(powerup.type)
     ctx.fillStyle = powerupColor(powerup.type)
     ctx.beginPath()
-    roundedRect(-16, -16, 32, 32, 8)
+    if (powerup.type === 'credits') {
+      ctx.moveTo(0, -18)
+      ctx.lineTo(18, 0)
+      ctx.lineTo(0, 18)
+      ctx.lineTo(-18, 0)
+      ctx.closePath()
+    } else if (powerup.type === 'shield' || powerup.type === 'emp' || powerup.type === 'pulse') {
+      for (let index = 0; index < 6; index += 1) {
+        const angle = (index / 6) * Math.PI * 2 - Math.PI / 2
+        const x = Math.cos(angle) * 18
+        const y = Math.sin(angle) * 18
+        if (index === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+    } else {
+      ctx.arc(0, 0, powerup.type === 'nuke' ? 19 : 17, 0, Math.PI * 2)
+    }
     ctx.fill()
-    ctx.fillStyle = '#041016'
     ctx.font = '900 16px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const labels = { life: '+', shield: 'S', credits: '$', emp: 'E', nuke: 'N', pulse: 'P', flame: 'F', laser: 'L', freeze: 'Z' }
-    ctx.fillText(labels[powerup.type], 0, 1)
+    drawPowerupIcon(powerup.type)
     ctx.restore()
   }
 }
@@ -1758,6 +1981,22 @@ function drawEffects() {
       ctx.beginPath()
       ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2)
       ctx.stroke()
+    } else if (effect.type === 'upgrade') {
+      ctx.lineWidth = 3
+      for (let ring = 0; ring < 3; ring += 1) {
+        ctx.globalAlpha = alpha * (0.9 - ring * 0.2)
+        ctx.beginPath()
+        const radius = effect.radius * (1 - alpha + ring * 0.28)
+        for (let index = 0; index < 6; index += 1) {
+          const angle = (index / 6) * Math.PI * 2 + performance.now() / 900
+          const x = effect.x + Math.cos(angle) * radius
+          const y = effect.y + Math.sin(angle) * radius
+          if (index === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.closePath()
+        ctx.stroke()
+      }
     } else {
       ctx.beginPath()
       ctx.arc(effect.x, effect.y, effect.radius * alpha, 0, Math.PI * 2)

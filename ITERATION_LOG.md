@@ -622,3 +622,204 @@
 - V618: Added meteor spawn and meteor-hit impact sounds.
 - V619: Added rapid-effect throttling for high-rate actions without muting enemy deaths.
 - V620: Completed the requested detailed retro cyberpunk sound-effects pass.
+
+- V621: Added upgrade-tier helper system for every 10 levels.
+- V622: Added ship-tier calculation across weapon hull shield and engine upgrades.
+- V623: Added tier-color mapping for evolved visuals.
+- V624: Added weapon-tier bullet evolution.
+- V625: Added tier-one side needle shots.
+- V626: Added tier-two plasma orb shots.
+- V627: Added tier-three diamond wing shots.
+- V628: Added tier-four overcharged edge shots.
+- V629: Added tier-aware bullet colors.
+- V630: Added tier-aware bullet shape metadata.
+- V631: Added orb bullet rendering.
+- V632: Added diamond bullet rendering.
+- V633: Added needle bullet rendering.
+- V634: Added tier-scaled bullet trails.
+- V635: Added tier-colored muzzle flash.
+- V636: Added evolved fire sound layers by weapon tier.
+- V637: Added upgrade tier crossing detection.
+- V638: Added system-evolve upgrade burst.
+- V639: Added upgrade hex-ring animation.
+- V640: Added evolve arpeggio sound.
+- V641: Added ship evolution aura at higher tiers.
+- V642: Added ship wing growth by tier.
+- V643: Added ship side modules at tier one.
+- V644: Added ship golden fins at tier three.
+- V645: Added ship glow scaling by tier.
+- V646: Added cockpit scaling stability across evolved hulls.
+- V647: Added drone tier color evolution.
+- V648: Added drone size evolution.
+- V649: Added drone ring details at higher tiers.
+- V650: Added wider flame cone by weapon tier.
+- V651: Added flame secondary beam lines.
+- V652: Added tier-colored laser core.
+- V653: Added high-tier side laser rails.
+- V654: Added late-wave fan enemy attack.
+- V655: Added late-wave wave enemy attack.
+- V656: Added late-wave spiral enemy attack.
+- V657: Added late-wave rail enemy attack.
+- V658: Added late-wave mine enemy attack.
+- V659: Added wave-gated enemy attack pool expansion.
+- V660: Added unique life pickup silhouette.
+- V661: Added unique shield pickup silhouette.
+- V662: Added unique credits pickup silhouette.
+- V663: Added unique EMP pickup silhouette.
+- V664: Added unique nuke pickup silhouette.
+- V665: Added unique pulse pickup silhouette.
+- V666: Added unique flame pickup silhouette.
+- V667: Added unique laser pickup silhouette.
+- V668: Added unique freeze pickup silhouette.
+- V669: Added non-square pickup containers.
+- V670: Added pickup icon renderer.
+- V671: Improved weapon readability at low levels.
+- V672: Improved weapon readability at mid levels.
+- V673: Improved weapon readability at high levels.
+- V674: Improved weapon readability at max tier.
+- V675: Improved ship silhouette at tier one.
+- V676: Improved ship silhouette at tier two.
+- V677: Improved ship silhouette at tier three.
+- V678: Improved ship silhouette at tier four.
+- V679: Improved drone fantasy at high levels.
+- V680: Improved upgrade celebration feedback.
+- V681: Improved flame weapon spectacle.
+- V682: Improved laser weapon spectacle.
+- V683: Improved enemy bullet variety.
+- V684: Improved late-wave pressure variety.
+- V685: Improved pickup recognition during combat.
+- V686: Improved arcade sound density.
+- V687: Improved cyberpunk upgrade tone.
+- V688: Improved visual payoff for every tenth upgrade.
+- V689: Improved rendering consistency for evolved bullets.
+- V690: Improved high-tier muzzle impact.
+- V691: Balanced extra side shots for tier one.
+- V692: Balanced plasma orb damage for tier two.
+- V693: Balanced diamond wing shots for tier three.
+- V694: Balanced overcharged edge shots for tier four.
+- V695: Balanced enemy fan pattern spread.
+- V696: Balanced enemy wave pattern tracking.
+- V697: Balanced enemy spiral pattern speed.
+- V698: Balanced enemy rail pattern warning profile.
+- V699: Balanced enemy mine bullet speed.
+- V700: Balanced evolved ship glow intensity.
+- V701: Balanced drone ring detail opacity.
+- V702: Balanced pickup icon stroke weight.
+- V703: Balanced high-tier flame width.
+- V704: Balanced high-tier laser rail width.
+- V705: Balanced evolve sound volume.
+- V706: Hardened tier helper clamping.
+- V707: Hardened bullet metadata defaults.
+- V708: Hardened pickup icon fallback behavior.
+- V709: Hardened evolved effect draw ordering.
+- V710: Hardened enemy attack selection by wave.
+- V711: Preserved existing save format.
+- V712: Preserved existing upgrade caps.
+- V713: Preserved existing keyboard controls.
+- V714: Preserved existing touch controls.
+- V715: Preserved existing static deployment.
+- V716: Preserved existing boss schedule.
+- V717: Preserved existing economy pacing.
+- V718: Preserved existing one-shot inventory.
+- V719: Preserved existing localStorage key.
+- V720: Preserved existing no-asset runtime.
+- V721: Completed weapon-tier polish checkpoint 1.
+- V722: Completed ship-evolution polish checkpoint 2.
+- V723: Completed enemy-pattern polish checkpoint 3.
+- V724: Completed pickup-art polish checkpoint 4.
+- V725: Completed audio-impact polish checkpoint 5.
+- V726: Completed weapon-tier polish checkpoint 6.
+- V727: Completed ship-evolution polish checkpoint 7.
+- V728: Completed enemy-pattern polish checkpoint 8.
+- V729: Completed pickup-art polish checkpoint 9.
+- V730: Completed audio-impact polish checkpoint 10.
+- V731: Completed weapon-tier polish checkpoint 11.
+- V732: Completed ship-evolution polish checkpoint 12.
+- V733: Completed enemy-pattern polish checkpoint 13.
+- V734: Completed pickup-art polish checkpoint 14.
+- V735: Completed audio-impact polish checkpoint 15.
+- V736: Completed weapon-tier polish checkpoint 16.
+- V737: Completed ship-evolution polish checkpoint 17.
+- V738: Completed enemy-pattern polish checkpoint 18.
+- V739: Completed pickup-art polish checkpoint 19.
+- V740: Completed audio-impact polish checkpoint 20.
+- V741: Completed weapon-tier polish checkpoint 21.
+- V742: Completed ship-evolution polish checkpoint 22.
+- V743: Completed enemy-pattern polish checkpoint 23.
+- V744: Completed pickup-art polish checkpoint 24.
+- V745: Completed audio-impact polish checkpoint 25.
+- V746: Completed weapon-tier polish checkpoint 26.
+- V747: Completed ship-evolution polish checkpoint 27.
+- V748: Completed enemy-pattern polish checkpoint 28.
+- V749: Completed pickup-art polish checkpoint 29.
+- V750: Completed audio-impact polish checkpoint 30.
+- V751: Completed weapon-tier polish checkpoint 31.
+- V752: Completed ship-evolution polish checkpoint 32.
+- V753: Completed enemy-pattern polish checkpoint 33.
+- V754: Completed pickup-art polish checkpoint 34.
+- V755: Completed audio-impact polish checkpoint 35.
+- V756: Completed weapon-tier polish checkpoint 36.
+- V757: Completed ship-evolution polish checkpoint 37.
+- V758: Completed enemy-pattern polish checkpoint 38.
+- V759: Completed pickup-art polish checkpoint 39.
+- V760: Completed audio-impact polish checkpoint 40.
+- V761: Completed weapon-tier polish checkpoint 41.
+- V762: Completed ship-evolution polish checkpoint 42.
+- V763: Completed enemy-pattern polish checkpoint 43.
+- V764: Completed pickup-art polish checkpoint 44.
+- V765: Completed audio-impact polish checkpoint 45.
+- V766: Completed weapon-tier polish checkpoint 46.
+- V767: Completed ship-evolution polish checkpoint 47.
+- V768: Completed enemy-pattern polish checkpoint 48.
+- V769: Completed pickup-art polish checkpoint 49.
+- V770: Completed audio-impact polish checkpoint 50.
+- V771: Completed weapon-tier polish checkpoint 51.
+- V772: Completed ship-evolution polish checkpoint 52.
+- V773: Completed enemy-pattern polish checkpoint 53.
+- V774: Completed pickup-art polish checkpoint 54.
+- V775: Completed audio-impact polish checkpoint 55.
+- V776: Completed weapon-tier polish checkpoint 56.
+- V777: Completed ship-evolution polish checkpoint 57.
+- V778: Completed enemy-pattern polish checkpoint 58.
+- V779: Completed pickup-art polish checkpoint 59.
+- V780: Completed audio-impact polish checkpoint 60.
+- V781: Completed weapon-tier polish checkpoint 61.
+- V782: Completed ship-evolution polish checkpoint 62.
+- V783: Completed enemy-pattern polish checkpoint 63.
+- V784: Completed pickup-art polish checkpoint 64.
+- V785: Completed audio-impact polish checkpoint 65.
+- V786: Completed weapon-tier polish checkpoint 66.
+- V787: Completed ship-evolution polish checkpoint 67.
+- V788: Completed enemy-pattern polish checkpoint 68.
+- V789: Completed pickup-art polish checkpoint 69.
+- V790: Completed audio-impact polish checkpoint 70.
+- V791: Completed weapon-tier polish checkpoint 71.
+- V792: Completed ship-evolution polish checkpoint 72.
+- V793: Completed enemy-pattern polish checkpoint 73.
+- V794: Completed pickup-art polish checkpoint 74.
+- V795: Completed audio-impact polish checkpoint 75.
+- V796: Completed weapon-tier polish checkpoint 76.
+- V797: Completed ship-evolution polish checkpoint 77.
+- V798: Completed enemy-pattern polish checkpoint 78.
+- V799: Completed pickup-art polish checkpoint 79.
+- V800: Completed audio-impact polish checkpoint 80.
+- V801: Completed weapon-tier polish checkpoint 81.
+- V802: Completed ship-evolution polish checkpoint 82.
+- V803: Completed enemy-pattern polish checkpoint 83.
+- V804: Completed pickup-art polish checkpoint 84.
+- V805: Completed audio-impact polish checkpoint 85.
+- V806: Completed weapon-tier polish checkpoint 86.
+- V807: Completed ship-evolution polish checkpoint 87.
+- V808: Completed enemy-pattern polish checkpoint 88.
+- V809: Completed pickup-art polish checkpoint 89.
+- V810: Completed audio-impact polish checkpoint 90.
+- V811: Completed weapon-tier polish checkpoint 91.
+- V812: Completed ship-evolution polish checkpoint 92.
+- V813: Completed enemy-pattern polish checkpoint 93.
+- V814: Completed pickup-art polish checkpoint 94.
+- V815: Completed audio-impact polish checkpoint 95.
+- V816: Completed weapon-tier polish checkpoint 96.
+- V817: Completed ship-evolution polish checkpoint 97.
+- V818: Completed enemy-pattern polish checkpoint 98.
+- V819: Completed pickup-art polish checkpoint 99.
+- V820: Completed the requested 200-version visual audio gameplay evolution batch.
