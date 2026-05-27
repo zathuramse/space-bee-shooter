@@ -19,17 +19,24 @@ const restartButton = document.querySelector('#restartButton')
 const nextWaveButton = document.querySelector('#nextWaveButton')
 const pauseButton = document.querySelector('#pauseButton')
 const specialButton = document.querySelector('#specialButton')
+const oneShotButtons = {
+  nuke: document.querySelector('[data-weapon="nuke"]'),
+  pulse: document.querySelector('[data-weapon="pulse"]'),
+  flame: document.querySelector('[data-weapon="flame"]'),
+  laser: document.querySelector('[data-weapon="laser"]'),
+  freeze: document.querySelector('[data-weapon="freeze"]'),
+}
 
 const world = { width: 960, height: 620 }
 const input = { left: false, right: false, fire: false }
 const upgradeOrder = ['weapon', 'engine', 'hull', 'shield', 'drone']
 
 const upgradeDefs = {
-  weapon: { label: '武器', max: 6, base: 70, step: 65 },
-  engine: { label: '引擎', max: 6, base: 60, step: 55 },
-  hull: { label: '船體', max: 5, base: 85, step: 70 },
-  shield: { label: '護盾', max: 5, base: 80, step: 65 },
-  drone: { label: '僚機', max: 4, base: 105, step: 85 },
+  weapon: { label: '武器', max: 50, base: 70, step: 36 },
+  engine: { label: '引擎', max: 50, base: 60, step: 32 },
+  hull: { label: '船體', max: 50, base: 85, step: 40 },
+  shield: { label: '護盾', max: 50, base: 80, step: 38 },
+  drone: { label: '僚機', max: 50, base: 105, step: 44 },
 }
 
 const upgradeEls = {
@@ -63,6 +70,17 @@ const state = {
   waveBonus: 0,
   currentSquad: 1,
   squadsTotal: 1,
+  flameTimer: 0,
+  laserTimer: 0,
+  freezeTimer: 0,
+  screenShake: 0,
+  inventory: {
+    nuke: 0,
+    pulse: 0,
+    flame: 0,
+    laser: 0,
+    freeze: 0,
+  },
 }
 
 const upgrades = {
@@ -112,13 +130,13 @@ function aimVector(fromX, fromY, toX, toY, speed) {
 
 function upgradeCost(id) {
   const def = upgradeDefs[id]
-  return def.base + upgrades[id] * def.step
+  return Math.round(def.base + Math.pow(upgrades[id], 1.18) * def.step)
 }
 
 function applyUpgradeStats() {
-  player.speed = 380 + upgrades.engine * 62
-  state.maxLives = 3 + upgrades.hull
-  state.maxShield = upgrades.shield + 1
+  player.speed = clamp(390 + upgrades.engine * 16, 390, 980)
+  state.maxLives = 4 + Math.floor(upgrades.hull * 0.55)
+  state.maxShield = 2 + Math.floor(upgrades.shield * 0.58)
   state.lives = clamp(state.lives, 0, state.maxLives)
   state.shield = clamp(state.shield, 0, state.maxShield)
 }
@@ -142,6 +160,15 @@ function resetGame() {
   state.waveBonus = 0
   state.currentSquad = 1
   state.squadsTotal = 1
+  state.flameTimer = 0
+  state.laserTimer = 0
+  state.freezeTimer = 0
+  state.screenShake = 0
+  state.inventory.nuke = 0
+  state.inventory.pulse = 1
+  state.inventory.flame = 0
+  state.inventory.laser = 0
+  state.inventory.freeze = 0
 
   upgrades.weapon = 1
   upgrades.engine = 1
@@ -200,8 +227,12 @@ function enemyStats(type) {
   return table[type]
 }
 
-function createEnemy(type, x, y, row = 0) {
+function createEnemy(type, x, y, row = 0, col = 0) {
   const stats = enemyStats(type)
+  const routes = ['drift', 'zigzag', 'swoop', 'orbit', 'ladder', 'split', 'rush']
+  const fireModes = ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy']
+  const route = type === 'boss' ? 'boss' : routes[(state.wave + state.currentSquad + row + col) % routes.length]
+  const fireMode = type === 'boss' ? 'boss' : state.wave < 3 ? stats.pattern : fireModes[(state.wave + state.currentSquad + row * 2 + col) % fireModes.length]
   return {
     x,
     y,
@@ -215,6 +246,8 @@ function createEnemy(type, x, y, row = 0) {
     score: stats.score,
     credit: stats.credit,
     pattern: stats.pattern,
+    fireMode,
+    route,
     phase: rand(0, Math.PI * 2),
     row,
     diving: false,
@@ -245,7 +278,7 @@ function spawnSquad() {
   player.invincible = 1.1
 
   if (state.wave % 5 === 0) {
-    enemies.push(createEnemy('boss', world.width / 2, 112 + (state.currentSquad - 1) * 18))
+    enemies.push(createEnemy('boss', world.width / 2, 112 + (state.currentSquad - 1) * 18, 0, 0))
     const escortTypes =
       state.currentSquad === 1
         ? ['bee', 'guard', 'bee', 'guard']
@@ -253,7 +286,7 @@ function spawnSquad() {
           ? ['sniper', 'guard', 'bomber', 'guard', 'sniper']
           : ['bee', 'guard', 'sniper', 'guard', 'bee']
     escortTypes.forEach((type, index) => {
-      enemies.push(createEnemy(type, 210 + index * 110, 232, 1))
+      enemies.push(createEnemy(type, 210 + index * 110, 232, 1, index))
     })
     return
   }
@@ -271,7 +304,7 @@ function spawnSquad() {
       if (state.wave >= 3 && state.currentSquad >= 2 && row === 0 && col % 3 === 0) type = 'sniper'
       if (state.wave >= 4 && state.currentSquad >= 2 && row === rows - 1 && col % 2 === 0) type = 'bomber'
       if (state.wave >= 7 && state.currentSquad >= 3 && row === rows - 1 && col % 4 === 0) type = 'tank'
-      enemies.push(createEnemy(type, startX + col * gapX, startY + row * gapY, row))
+      enemies.push(createEnemy(type, startX + col * gapX, startY + row * gapY, row, col))
     }
   }
 }
@@ -285,6 +318,7 @@ function updateHud() {
   weaponEl.textContent = `Lv.${upgrades.weapon}`
   specialButton.textContent = state.specialCooldown > 0 ? Math.ceil(state.specialCooldown).toString() : 'EMP'
   syncUpgradeCards()
+  syncArsenal()
 }
 
 function syncUpgradeCards() {
@@ -296,6 +330,14 @@ function syncUpgradeCards() {
     upgradeEls[id].level.textContent = `Lv.${level}`
     upgradeEls[id].button.textContent = maxed ? '已滿級' : `升級 ${cost}`
     upgradeEls[id].button.disabled = maxed || state.credits < cost || !state.running || state.over
+  }
+}
+
+function syncArsenal() {
+  const labels = { nuke: '核彈', pulse: '脈衝', flame: '火焰', laser: '雷射', freeze: '凍結' }
+  for (const [id, button] of Object.entries(oneShotButtons)) {
+    button.textContent = `${labels[id]} ${state.inventory[id]}`
+    button.disabled = state.inventory[id] <= 0 || !state.running || state.over || state.betweenWaves
   }
 }
 
@@ -318,16 +360,17 @@ function buyUpgrade(id) {
 
 function bulletPattern() {
   const level = upgrades.weapon
-  if (level === 1) return [{ x: 0, dx: 0, damage: 1, size: 8 }]
-  if (level === 2) return [{ x: -12, dx: 0, damage: 1, size: 8 }, { x: 12, dx: 0, damage: 1, size: 8 }]
-  if (level === 3) return [{ x: -18, dx: -70, damage: 1, size: 8 }, { x: 0, dx: 0, damage: 1, size: 9 }, { x: 18, dx: 70, damage: 1, size: 8 }]
-  if (level === 4) return [{ x: -24, dx: -115, damage: 1, size: 8 }, { x: -8, dx: -25, damage: 1, size: 8 }, { x: 8, dx: 25, damage: 1, size: 8 }, { x: 24, dx: 115, damage: 1, size: 8 }]
+  const bonus = Math.floor((level - 1) / 7)
+  if (level === 1) return [{ x: 0, dx: 0, damage: 1 + bonus, size: 8 }]
+  if (level === 2) return [{ x: -12, dx: 0, damage: 1 + bonus, size: 8 }, { x: 12, dx: 0, damage: 1 + bonus, size: 8 }]
+  if (level === 3) return [{ x: -18, dx: -70, damage: 1 + bonus, size: 8 }, { x: 0, dx: 0, damage: 1 + bonus, size: 9 }, { x: 18, dx: 70, damage: 1 + bonus, size: 8 }]
+  if (level === 4) return [{ x: -24, dx: -115, damage: 1 + bonus, size: 8 }, { x: -8, dx: -25, damage: 1 + bonus, size: 8 }, { x: 8, dx: 25, damage: 1 + bonus, size: 8 }, { x: 24, dx: 115, damage: 1 + bonus, size: 8 }]
   return [
-    { x: -28, dx: -145, damage: 1, size: 8 },
-    { x: -12, dx: -48, damage: 1, size: 8 },
-    { x: 0, dx: 0, damage: level >= 6 ? 3 : 2, size: level >= 6 ? 13 : 11 },
-    { x: 12, dx: 48, damage: 1, size: 8 },
-    { x: 28, dx: 145, damage: 1, size: 8 },
+    { x: -28, dx: -145, damage: 1 + bonus, size: 8 },
+    { x: -12, dx: -48, damage: 1 + bonus, size: 8 },
+    { x: 0, dx: 0, damage: (level >= 6 ? 3 : 2) + bonus, size: level >= 6 ? 13 : 11 },
+    { x: 12, dx: 48, damage: 1 + bonus, size: 8 },
+    { x: 28, dx: 145, damage: 1 + bonus, size: 8 },
   ]
 }
 
@@ -355,7 +398,8 @@ function fireBullet() {
 function fireDrone() {
   if (upgrades.drone <= 0 || !state.running || state.paused || state.betweenWaves) return
   const offset = 38
-  const droneCount = clamp(upgrades.drone, 1, 4)
+  const droneCount = clamp(1 + Math.floor(upgrades.drone / 8), 1, 8)
+  const droneDamage = 1 + Math.floor(upgrades.drone / 12)
   for (let index = 0; index < droneCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1
     const lane = Math.ceil((index + 1) / 2)
@@ -366,7 +410,7 @@ function fireDrone() {
       height: 18,
       vx: side * 45,
       vy: -560,
-      damage: 1,
+      damage: droneDamage,
       source: 'drone',
       color: '#7fe58b',
     })
@@ -379,21 +423,22 @@ function spawnEnemyBullet(x, y, vx, vy, size = 10, color = '#e85d75') {
 
 function enemyFire(enemy) {
   const speed = 250 + state.wave * 15
-  if (enemy.pattern === 'straight') {
+  const pattern = enemy.fireMode ?? enemy.pattern
+  if (pattern === 'straight') {
     spawnEnemyBullet(enemy.x, enemy.y + 18, rand(-30, 30), speed)
-  } else if (enemy.pattern === 'aimed') {
+  } else if (pattern === 'aimed') {
     const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 40)
     spawnEnemyBullet(enemy.x, enemy.y + 18, aim.vx, aim.vy)
-  } else if (enemy.pattern === 'spread') {
+  } else if (pattern === 'spread') {
     for (const angle of [-0.38, 0, 0.38]) spawnEnemyBullet(enemy.x, enemy.y + 18, Math.sin(angle) * speed, Math.cos(angle) * speed)
-  } else if (enemy.pattern === 'snipe') {
+  } else if (pattern === 'snipe') {
     const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 120)
     spawnEnemyBullet(enemy.x, enemy.y + 18, aim.vx, aim.vy, 8, '#f4d35e')
-  } else if (enemy.pattern === 'burst') {
+  } else if (pattern === 'burst') {
     for (const angle of [-0.62, -0.28, 0.28, 0.62]) spawnEnemyBullet(enemy.x, enemy.y + 18, Math.sin(angle) * speed, Math.cos(angle) * speed, 11, '#ff8b67')
-  } else if (enemy.pattern === 'heavy') {
+  } else if (pattern === 'heavy') {
     for (const angle of [-0.22, 0.22]) spawnEnemyBullet(enemy.x, enemy.y + 20, Math.sin(angle) * (speed + 25), Math.cos(angle) * (speed + 25), 15, '#b987ff')
-  } else if (enemy.pattern === 'boss') {
+  } else if (pattern === 'boss') {
     const ring = 7 + Math.floor(state.wave / 5)
     for (let index = 0; index < ring; index += 1) {
       const angle = -0.82 + (index / Math.max(1, ring - 1)) * 1.64
@@ -429,10 +474,53 @@ function floatText(x, y, text, color = '#f4d35e') {
   floatTexts.push({ x, y, text, color, life: 0.95, maxLife: 0.95 })
 }
 
-function spawnPowerup() {
+function spawnPowerup(type = '') {
   const roll = Math.random()
-  const type = roll > 0.78 ? 'life' : roll > 0.55 ? 'shield' : roll > 0.32 ? 'credits' : 'emp'
-  powerups.push({ x: rand(80, world.width - 80), y: -28, width: 30, height: 30, vy: 110, type })
+  const chosen =
+    type ||
+    (roll > 0.9
+      ? 'nuke'
+      : roll > 0.8
+        ? 'pulse'
+        : roll > 0.68
+          ? 'flame'
+          : roll > 0.56
+            ? 'laser'
+            : roll > 0.44
+              ? 'freeze'
+              : roll > 0.3
+                ? 'life'
+                : roll > 0.16
+                  ? 'shield'
+                  : roll > 0.06
+                    ? 'credits'
+                    : 'emp')
+  powerups.push({ x: rand(80, world.width - 80), y: -28, width: 32, height: 32, vy: 105, type: chosen })
+}
+
+function maybeDropTreasure(enemy) {
+  const dropChance = enemy.type === 'boss' ? 1 : clamp(0.18 + state.wave * 0.012 + state.currentSquad * 0.025, 0.18, 0.44)
+  if (Math.random() > dropChance) return
+  const roll = Math.random()
+  const type =
+    enemy.type === 'boss'
+      ? 'nuke'
+      : roll > 0.92
+        ? 'nuke'
+        : roll > 0.8
+          ? 'pulse'
+          : roll > 0.67
+            ? 'flame'
+            : roll > 0.54
+              ? 'laser'
+              : roll > 0.42
+                ? 'freeze'
+                : roll > 0.26
+                  ? 'credits'
+                  : roll > 0.12
+                    ? 'shield'
+                    : 'life'
+  powerups.push({ x: enemy.x - 16, y: enemy.y - 12, width: 32, height: 32, vy: 92, type })
 }
 
 function updateStars(dt) {
@@ -457,8 +545,30 @@ function updatePlayer(dt) {
   if (input.fire) fireBullet()
   if (state.droneTimer === 0) {
     fireDrone()
-    state.droneTimer = clamp(0.78 - upgrades.drone * 0.08, 0.42, 0.78)
+    state.droneTimer = clamp(0.78 - upgrades.drone * 0.018, 0.26, 0.78)
   }
+}
+
+function updateOneShotWeapons(dt) {
+  state.flameTimer = Math.max(0, state.flameTimer - dt)
+  state.laserTimer = Math.max(0, state.laserTimer - dt)
+  state.freezeTimer = Math.max(0, state.freezeTimer - dt)
+  state.screenShake = Math.max(0, state.screenShake - dt)
+
+  if (state.flameTimer > 0) {
+    for (const enemy of enemies) {
+      const inCone = Math.abs(enemy.x - player.x) < 150 && enemy.y > player.y - 330 && enemy.y < player.y + 20
+      if (inCone) enemy.hp -= (4 + upgrades.weapon * 0.18) * dt
+    }
+  }
+
+  if (state.laserTimer > 0) {
+    for (const enemy of enemies) {
+      if (Math.abs(enemy.x - player.x) < 42) enemy.hp -= (9 + upgrades.weapon * 0.3) * dt
+    }
+  }
+
+  if (state.flameTimer > 0 || state.laserTimer > 0) cleanupDefeatedEnemies(0.82)
 }
 
 function updateBullets(dt) {
@@ -471,8 +581,9 @@ function updateBullets(dt) {
 
   for (let index = enemyBullets.length - 1; index >= 0; index -= 1) {
     const bullet = enemyBullets[index]
-    bullet.x += bullet.vx * dt
-    bullet.y += bullet.vy * dt
+    const slow = state.freezeTimer > 0 ? 0.32 : 1
+    bullet.x += bullet.vx * dt * slow
+    bullet.y += bullet.vy * dt * slow
     if (bullet.y > world.height + 70 || bullet.x < -70 || bullet.x > world.width + 70) enemyBullets.splice(index, 1)
   }
 }
@@ -492,8 +603,23 @@ function updateEnemies(dt) {
 
     if (!enemy.diving) {
       enemy.baseX += speed * state.enemyDirection * dt
-      enemy.x = enemy.baseX + Math.sin(performance.now() / 320 + enemy.phase) * (8 + enemy.row)
-      enemy.y = enemy.baseY + Math.cos(performance.now() / 470 + enemy.phase) * 5 + state.enemyStepDown
+      const t = performance.now() / 1000 + enemy.phase
+      let routeX = Math.sin(t * 2.1) * (8 + enemy.row)
+      let routeY = Math.cos(t * 1.4) * 5
+      if (enemy.route === 'zigzag') routeX = Math.sin(t * 4.2) * 22
+      if (enemy.route === 'swoop') routeY = Math.sin(t * 2.8) * 18
+      if (enemy.route === 'orbit') {
+        routeX = Math.sin(t * 2.2) * 24
+        routeY = Math.cos(t * 1.8) * 14
+      }
+      if (enemy.route === 'ladder') {
+        routeX = (Math.floor(t * 2.5) % 2 === 0 ? -1 : 1) * (12 + enemy.row * 2)
+        routeY = Math.sin(t * 3.2) * 8
+      }
+      if (enemy.route === 'split') routeX = Math.sin(t * 2.5) * (enemy.row % 2 === 0 ? 30 : -30)
+      if (enemy.route === 'rush') routeY = Math.max(0, Math.sin(t * 1.6)) * 24
+      enemy.x = enemy.baseX + routeX
+      enemy.y = enemy.baseY + routeY + state.enemyStepDown
       if (enemy.x < 28 || enemy.x > world.width - 28) edgeHit = true
     } else {
       enemy.diveT += dt
@@ -549,7 +675,9 @@ function updatePowerups(dt) {
       if (powerup.type === 'shield') state.shield = clamp(state.shield + 1, 0, state.maxShield)
       if (powerup.type === 'credits') state.credits += 220 + state.wave * 28
       if (powerup.type === 'emp') state.specialCooldown = 0
+      if (['nuke', 'pulse', 'flame', 'laser', 'freeze'].includes(powerup.type)) state.inventory[powerup.type] += 1
       spawnExplosion(powerup.x + 15, powerup.y + 15, powerupColor(powerup.type), 18)
+      floatText(powerup.x + 15, powerup.y, treasureLabel(powerup.type), powerupColor(powerup.type))
       powerups.splice(index, 1)
       updateHud()
     }
@@ -596,6 +724,7 @@ function resolveCollisions() {
         state.credits += killCredits
         floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
         spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 48 : 18)
+        maybeDropTreasure(enemy)
         enemies.splice(enemyIndex, 1)
         updateHud()
       }
@@ -627,6 +756,18 @@ function resolveCollisions() {
     } else {
       completeWave()
     }
+  }
+}
+
+function cleanupDefeatedEnemies(multiplier = 0.75) {
+  for (let index = enemies.length - 1; index >= 0; index -= 1) {
+    const enemy = enemies[index]
+    if (enemy.hp > 0) continue
+    state.score += Math.floor(enemy.score * multiplier)
+    state.credits += Math.floor(enemy.credit * multiplier)
+    maybeDropTreasure(enemy)
+    spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 42 : 16)
+    enemies.splice(index, 1)
   }
 }
 
@@ -686,6 +827,59 @@ function useSpecial() {
   updateHud()
 }
 
+function useOneShot(type) {
+  if (!state.running || state.paused || state.over || state.betweenWaves || state.inventory[type] <= 0) return
+  state.inventory[type] -= 1
+
+  if (type === 'nuke') {
+    enemyBullets.length = 0
+    for (let index = enemies.length - 1; index >= 0; index -= 1) {
+      const enemy = enemies[index]
+      enemy.hp -= enemy.type === 'boss' ? 55 + upgrades.weapon * 2 : 999
+      spawnExplosion(enemy.x, enemy.y, '#f4d35e', 22)
+      if (enemy.hp <= 0) {
+        state.score += Math.floor(enemy.score * 0.85)
+        state.credits += Math.floor(enemy.credit * 0.85)
+        maybeDropTreasure(enemy)
+        enemies.splice(index, 1)
+      }
+    }
+    state.screenShake = 0.55
+    floatText(world.width / 2, world.height / 2, '核彈清場', '#f4d35e')
+  }
+
+  if (type === 'pulse') {
+    enemyBullets.length = 0
+    for (const enemy of enemies) {
+      enemy.hp -= 9 + Math.floor(upgrades.weapon / 4)
+      spawnExplosion(enemy.x, enemy.y, '#b987ff', 10)
+    }
+    cleanupDefeatedEnemies(0.8)
+    state.shield = clamp(state.shield + 1, 0, state.maxShield)
+    state.screenShake = 0.28
+    floatText(player.x, player.y - 70, '脈衝爆發', '#b987ff')
+  }
+
+  if (type === 'flame') {
+    state.flameTimer = 5.5 + upgrades.weapon * 0.05
+    floatText(player.x, player.y - 70, '火焰噴射', '#ff8b67')
+  }
+
+  if (type === 'laser') {
+    state.laserTimer = 4.4 + upgrades.weapon * 0.035
+    floatText(player.x, player.y - 70, '雷射貫穿', '#7bd6e8')
+  }
+
+  if (type === 'freeze') {
+    state.freezeTimer = 5.2 + upgrades.shield * 0.04
+    enemyBullets.length = Math.floor(enemyBullets.length / 3)
+    floatText(player.x, player.y - 70, '時間凍結', '#9ad9ff')
+  }
+
+  cleanupDefeatedEnemies(0.85)
+  updateHud()
+}
+
 function endGame() {
   state.running = false
   state.over = true
@@ -710,8 +904,9 @@ function update(dt) {
 
   updateStars(dt)
   updatePlayer(dt)
+  updateOneShotWeapons(dt)
   updateBullets(dt)
-  updateEnemies(dt)
+  updateEnemies(state.freezeTimer > 0 ? dt * 0.38 : dt)
   updatePowerups(dt)
   updateParticles(dt)
   updateFloatTexts(dt)
@@ -746,8 +941,33 @@ function enemyColor(type) {
 }
 
 function powerupColor(type) {
-  const colors = { life: '#7fe58b', shield: '#35c4df', credits: '#f4d35e', emp: '#b987ff' }
+  const colors = {
+    life: '#7fe58b',
+    shield: '#35c4df',
+    credits: '#f4d35e',
+    emp: '#b987ff',
+    nuke: '#f4d35e',
+    pulse: '#b987ff',
+    flame: '#ff8b67',
+    laser: '#7bd6e8',
+    freeze: '#9ad9ff',
+  }
   return colors[type] ?? '#35c4df'
+}
+
+function treasureLabel(type) {
+  const labels = {
+    life: '生命',
+    shield: '護盾',
+    credits: '晶片',
+    emp: 'EMP',
+    nuke: '核彈',
+    pulse: '脈衝',
+    flame: '火焰',
+    laser: '雷射',
+    freeze: '凍結',
+  }
+  return labels[type] ?? '寶箱'
 }
 
 function drawBackground() {
@@ -821,7 +1041,8 @@ function drawPlayer() {
 
 function drawDrones() {
   if (upgrades.drone <= 0) return
-  for (let index = 0; index < upgrades.drone; index += 1) {
+  const droneCount = clamp(1 + Math.floor(upgrades.drone / 8), 1, 8)
+  for (let index = 0; index < droneCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1
     const lane = Math.ceil((index + 1) / 2)
     const x = side * 38 * lane
@@ -875,31 +1096,65 @@ function drawEnemy(enemy) {
 }
 
 function drawBullets() {
+  ctx.save()
+  ctx.shadowBlur = 14
   for (const bullet of bullets) {
     ctx.fillStyle = bullet.color
+    ctx.shadowColor = bullet.color
     ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
   }
   for (const bullet of enemyBullets) {
     ctx.fillStyle = bullet.color
+    ctx.shadowColor = bullet.color
     ctx.beginPath()
     ctx.ellipse(bullet.x + bullet.width / 2, bullet.y + bullet.height / 2, bullet.width / 2, bullet.height / 2, 0, 0, Math.PI * 2)
     ctx.fill()
+  }
+  ctx.restore()
+}
+
+function drawWeaponEffects() {
+  if (state.flameTimer > 0) {
+    const flame = ctx.createLinearGradient(player.x, player.y, player.x, player.y - 330)
+    flame.addColorStop(0, 'rgba(255, 139, 103, 0.75)')
+    flame.addColorStop(0.45, 'rgba(244, 211, 94, 0.32)')
+    flame.addColorStop(1, 'rgba(232, 93, 117, 0)')
+    ctx.fillStyle = flame
+    ctx.beginPath()
+    ctx.moveTo(player.x - 18, player.y - 20)
+    ctx.lineTo(player.x - 150, player.y - 330)
+    ctx.lineTo(player.x + 150, player.y - 330)
+    ctx.lineTo(player.x + 18, player.y - 20)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  if (state.laserTimer > 0) {
+    ctx.save()
+    ctx.globalAlpha = 0.78
+    ctx.shadowBlur = 22
+    ctx.shadowColor = '#7bd6e8'
+    ctx.fillStyle = '#7bd6e8'
+    ctx.fillRect(player.x - 8, 0, 16, player.y)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fillRect(player.x - 3, 0, 6, player.y)
+    ctx.restore()
   }
 }
 
 function drawPowerups() {
   for (const powerup of powerups) {
     ctx.save()
-    ctx.translate(powerup.x + 15, powerup.y + 15)
+    ctx.translate(powerup.x + powerup.width / 2, powerup.y + powerup.height / 2)
     ctx.fillStyle = powerupColor(powerup.type)
     ctx.beginPath()
-    roundedRect(-15, -15, 30, 30, 7)
+    roundedRect(-16, -16, 32, 32, 8)
     ctx.fill()
     ctx.fillStyle = '#041016'
     ctx.font = '900 16px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const labels = { life: '+', shield: 'S', credits: '$', emp: 'E' }
+    const labels = { life: '+', shield: 'S', credits: '$', emp: 'E', nuke: 'N', pulse: 'P', flame: 'F', laser: 'L', freeze: 'Z' }
     ctx.fillText(labels[powerup.type], 0, 1)
     ctx.restore()
   }
@@ -969,9 +1224,12 @@ function drawPaused() {
 }
 
 function draw() {
+  ctx.save()
+  if (state.screenShake > 0) ctx.translate(rand(-7, 7) * state.screenShake, rand(-7, 7) * state.screenShake)
   drawBackground()
   drawPowerups()
   drawBullets()
+  drawWeaponEffects()
   for (const enemy of enemies) drawEnemy(enemy)
   drawPlayer()
   drawParticles()
@@ -979,6 +1237,7 @@ function draw() {
   drawWaveStatus()
   drawBossBar()
   drawPaused()
+  ctx.restore()
 }
 
 function frame(time) {
@@ -1024,6 +1283,11 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault()
   }
   if (event.code === 'KeyX') useSpecial()
+  if (event.code === 'KeyZ') useOneShot('nuke')
+  if (event.code === 'KeyC') useOneShot('flame')
+  if (event.code === 'KeyV') useOneShot('laser')
+  if (event.code === 'KeyB') useOneShot('freeze')
+  if (event.code === 'KeyQ') useOneShot('pulse')
   if (event.code === 'KeyP') togglePause()
   if (event.code === 'KeyR') resetGame()
   if (/^Digit[1-5]$/.test(event.code)) buyUpgrade(upgradeOrder[Number(event.code.slice(-1)) - 1])
@@ -1041,6 +1305,7 @@ restartButton.addEventListener('click', resetGame)
 nextWaveButton.addEventListener('click', startNextWave)
 pauseButton.addEventListener('click', togglePause)
 specialButton.addEventListener('click', useSpecial)
+for (const [id, button] of Object.entries(oneShotButtons)) button.addEventListener('click', () => useOneShot(id))
 for (const id of upgradeOrder) upgradeEls[id].button.addEventListener('click', () => buyUpgrade(id))
 setButtonInput('#leftButton', 'left')
 setButtonInput('#rightButton', 'right')

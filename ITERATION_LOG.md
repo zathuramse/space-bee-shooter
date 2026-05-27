@@ -60,3 +60,103 @@
 - V58: Slowed early enemy fire and dive cadence to reduce sudden difficulty spikes.
 - V59: Added floating score and credit text on kills.
 - V60: Added nebula lighting, subtle background lanes, and stronger upgrade-card styling.
+- V61: Raised weapon upgrade cap from single digits to 50.
+- V62: Raised engine upgrade cap to 50.
+- V63: Raised hull upgrade cap to 50.
+- V64: Raised shield upgrade cap to 50.
+- V65: Raised drone upgrade cap to 50.
+- V66: Rebalanced upgrade cost growth for long-term leveling.
+- V67: Converted weapon scaling beyond level 6 into damage growth.
+- V68: Converted engine scaling into gradual high-level speed growth.
+- V69: Converted hull scaling into long-term maximum-life growth.
+- V70: Converted shield scaling into long-term shield-capacity growth.
+- V71: Converted drone scaling into additional drone lanes over time.
+- V72: Converted drone scaling into higher drone damage.
+- V73: Converted drone scaling into faster drone fire cadence.
+- V74: Added one-shot weapon inventory state.
+- V75: Added one-shot weapon buttons below the main controls.
+- V76: Added arsenal button disabled states.
+- V77: Added keyboard shortcut Z for nuke.
+- V78: Added keyboard shortcut Q for pulse.
+- V79: Added keyboard shortcut C for flame.
+- V80: Added keyboard shortcut V for laser.
+- V81: Added keyboard shortcut B for freeze.
+- V82: Added nuke one-shot weapon.
+- V83: Nuke now clears enemy bullets.
+- V84: Nuke now clears normal enemies.
+- V85: Nuke now damages bosses without trivializing them.
+- V86: Added pulse one-shot weapon.
+- V87: Pulse now clears enemy bullets.
+- V88: Pulse now damages all enemies.
+- V89: Pulse now restores one shield charge.
+- V90: Added flame one-shot weapon.
+- V91: Flame now creates a forward cone damage zone.
+- V92: Flame now has a visible cone effect.
+- V93: Added laser one-shot weapon.
+- V94: Laser now creates a vertical beam damage zone.
+- V95: Laser now has a bright core and glow effect.
+- V96: Added freeze one-shot weapon.
+- V97: Freeze now slows enemy movement.
+- V98: Freeze now slows enemy bullets.
+- V99: Freeze now partially clears existing bullet pressure.
+- V100: Added treasure labels when collecting drops.
+- V101: Added nuke treasure drops.
+- V102: Added pulse treasure drops.
+- V103: Added flame treasure drops.
+- V104: Added laser treasure drops.
+- V105: Added freeze treasure drops.
+- V106: Expanded random powerup spawns to include all one-shot weapons.
+- V107: Added kill-based treasure drop chance.
+- V108: Increased treasure drop chance by wave.
+- V109: Increased treasure drop chance by squad number.
+- V110: Guaranteed boss treasure behavior.
+- V111: Added route pattern metadata to every enemy.
+- V112: Added fire-mode metadata to every enemy.
+- V113: Added drift flight route.
+- V114: Added zigzag flight route.
+- V115: Added swoop flight route.
+- V116: Added orbit flight route.
+- V117: Added ladder flight route.
+- V118: Added split flight route.
+- V119: Added rush flight route.
+- V120: Enemy route assignment now varies by wave.
+- V121: Enemy route assignment now varies by squad.
+- V122: Enemy route assignment now varies by row.
+- V123: Enemy route assignment now varies by column.
+- V124: Enemy fire mode assignment now varies by wave.
+- V125: Enemy fire mode assignment now varies by squad.
+- V126: Enemy fire mode assignment now varies by row.
+- V127: Enemy fire mode assignment now varies by column.
+- V128: Early waves still preserve simpler patterns for onboarding.
+- V129: Later waves mix straight, aimed, spread, snipe, burst, and heavy attacks.
+- V130: Added cleanup flow for enemies defeated by non-bullet weapons.
+- V131: Added score and credit rewards for one-shot kills.
+- V132: Added treasure drops from one-shot kills.
+- V133: Added screen shake state.
+- V134: Nuke now triggers screen shake.
+- V135: Pulse now triggers lighter screen shake.
+- V136: Added glowing player bullet rendering.
+- V137: Added glowing enemy bullet rendering.
+- V138: Added richer arsenal panel styling.
+- V139: Added responsive arsenal layout.
+- V140: Added stronger treasure icon sizing.
+- V141: Added expanded treasure color set.
+- V142: Added expanded treasure letter labels.
+- V143: Added ongoing timer logic for flame.
+- V144: Added ongoing timer logic for laser.
+- V145: Added ongoing timer logic for freeze.
+- V146: Added visual feedback for each one-shot activation.
+- V147: Added README documentation for 50-level upgrades.
+- V148: Added README documentation for one-shot weapons.
+- V149: Added README documentation for expanded treasure drops.
+- V150: Added README documentation for route-pattern variation.
+- V151: Added README documentation for attack-pattern variation.
+- V152: Added UI tips for all new one-shot shortcuts.
+- V153: Kept EMP as a separate cooldown skill beside one-shot inventory.
+- V154: Preserved mobile control compatibility after adding arsenal buttons.
+- V155: Preserved wave pacing changes from the previous balance pass.
+- V156: Preserved squad-based wave length with the expanded combat model.
+- V157: Preserved GitHub Pages static-host compatibility.
+- V158: Prepared the expanded system for syntax verification.
+- V159: Prepared the expanded system for browser screenshot verification.
+- V160: Completed the requested 100-version upgrade batch.

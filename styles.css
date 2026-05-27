@@ -29,7 +29,7 @@ button {
   width: min(1240px, calc(100vw - 28px));
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
   gap: 12px;
   margin: 0 auto;
   padding: 14px 0 18px;
@@ -147,7 +147,8 @@ canvas {
 
 .overlay button,
 .controls button,
-.upgrade-panel button {
+.upgrade-panel button,
+.arsenal-panel button {
   min-height: 42px;
   border-radius: 8px;
   cursor: pointer;
@@ -179,6 +180,34 @@ canvas {
 .controls button.pressed {
   background: #35c4df;
   color: #041016;
+}
+
+.arsenal-panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.arsenal-panel button {
+  border: 1px solid rgba(244, 211, 94, 0.24);
+  background:
+    linear-gradient(180deg, rgba(61, 44, 74, 0.82), rgba(25, 23, 35, 0.9)),
+    #171f2b;
+  color: #f8f1d1;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+}
+
+.arsenal-panel button:not(:disabled):hover {
+  border-color: rgba(244, 211, 94, 0.62);
+  background: linear-gradient(180deg, #f4d35e, #d78b3e);
+  color: #121212;
+}
+
+.arsenal-panel button:disabled {
+  cursor: not-allowed;
+  color: #706c61;
+  background: #10151c;
 }
 
 .upgrade-panel {
@@ -262,6 +291,10 @@ canvas {
   .upgrade-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .arsenal-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -302,6 +335,10 @@ canvas {
 
   .upgrade-panel {
     grid-template-columns: 1fr;
+  }
+
+  .arsenal-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .upgrade-panel article {
