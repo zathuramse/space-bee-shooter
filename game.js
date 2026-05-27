@@ -127,6 +127,13 @@ const stageMods = {
   solar: { label: '太陽風', color: '#e85d75' },
 }
 
+const audioState = {
+  ctx: null,
+  master: null,
+  last: new Map(),
+  unlocked: false,
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
@@ -144,6 +151,180 @@ function aimVector(fromX, fromY, toX, toY, speed) {
   const dy = toY - fromY
   const length = Math.hypot(dx, dy) || 1
   return { vx: (dx / length) * speed, vy: (dy / length) * speed }
+}
+
+function initAudio() {
+  if (!audioState.ctx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return false
+    const ctx = new AudioContext()
+    const compressor = ctx.createDynamicsCompressor()
+    const master = ctx.createGain()
+    compressor.threshold.value = -18
+    compressor.knee.value = 16
+    compressor.ratio.value = 6
+    compressor.attack.value = 0.004
+    compressor.release.value = 0.18
+    master.gain.value = 0.32
+    compressor.connect(master)
+    master.connect(ctx.destination)
+    audioState.ctx = ctx
+    audioState.master = compressor
+  }
+
+  if (audioState.ctx.state === 'suspended') audioState.ctx.resume().catch(() => {})
+  audioState.unlocked = true
+  return true
+}
+
+function canPlaySfx(id, gap = 0.035) {
+  if (!audioState.ctx || !audioState.unlocked) return false
+  const now = performance.now()
+  const previous = audioState.last.get(id) || 0
+  if (now - previous < gap * 1000) return false
+  audioState.last.set(id, now)
+  return true
+}
+
+function tone(freq, duration, options = {}) {
+  const ctx = audioState.ctx
+  if (!ctx) return
+  const start = ctx.currentTime + (options.delay || 0)
+  const oscillator = ctx.createOscillator()
+  const gain = ctx.createGain()
+  const filter = ctx.createBiquadFilter()
+  const attack = options.attack ?? 0.006
+  const release = options.release ?? 0.045
+  const volume = options.gain ?? 0.08
+  const end = start + duration
+
+  oscillator.type = options.type || 'square'
+  oscillator.frequency.setValueAtTime(Math.max(24, freq), start)
+  if (options.slide) oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, freq + options.slide), end)
+  if (options.detune) oscillator.detune.setValueAtTime(options.detune, start)
+
+  filter.type = options.filterType || 'lowpass'
+  filter.frequency.setValueAtTime(options.filter || 4200, start)
+  filter.Q.setValueAtTime(options.q || 1, start)
+
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(volume, start + attack)
+  gain.gain.exponentialRampToValueAtTime(0.0001, end + release)
+
+  oscillator.connect(filter)
+  filter.connect(gain)
+  gain.connect(audioState.master)
+  oscillator.start(start)
+  oscillator.stop(end + release + 0.02)
+}
+
+function noise(duration, options = {}) {
+  const ctx = audioState.ctx
+  if (!ctx) return
+  const start = ctx.currentTime + (options.delay || 0)
+  const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let index = 0; index < data.length; index += 1) data[index] = rand(-1, 1)
+
+  const source = ctx.createBufferSource()
+  const gain = ctx.createGain()
+  const filter = ctx.createBiquadFilter()
+  filter.type = options.filterType || 'bandpass'
+  filter.frequency.setValueAtTime(options.filter || 1200, start)
+  filter.Q.setValueAtTime(options.q || 4, start)
+  gain.gain.setValueAtTime(options.gain ?? 0.06, start)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  source.buffer = buffer
+  source.connect(filter)
+  filter.connect(gain)
+  gain.connect(audioState.master)
+  source.start(start)
+  source.stop(start + duration + 0.02)
+}
+
+function arpeggio(notes, step = 0.035, options = {}) {
+  notes.forEach((freq, index) => tone(freq, options.duration || 0.07, { ...options, delay: (options.delay || 0) + index * step }))
+}
+
+function enemyDeathSound(type) {
+  playSfx(isBossType(type) ? 'bossDeath' : 'enemyDeath', { type })
+}
+
+function playSfx(id, detail = {}) {
+  const gaps = {
+    fire: 0.045,
+    enemyFire: 0.09,
+    bulletHit: 0.025,
+    move: 0.14,
+    enemyDeath: 0,
+    bossDeath: 0,
+    meteorHit: 0.08,
+  }
+  if (!canPlaySfx(id, gaps[id] ?? 0.035)) return
+
+  if (id === 'ui') tone(880, 0.045, { type: 'square', gain: 0.035, filter: 2600, slide: 220 })
+  if (id === 'start') arpeggio([220, 440, 660, 880], 0.045, { type: 'sawtooth', gain: 0.065, filter: 3200, duration: 0.09 })
+  if (id === 'nextWave') arpeggio([330, 494, 740], 0.05, { type: 'triangle', gain: 0.055, filter: 3800, duration: 0.11 })
+  if (id === 'waveClear') arpeggio([392, 523, 784, 1046], 0.07, { type: 'square', gain: 0.075, filter: 4200, duration: 0.12 })
+  if (id === 'pause') tone(detail.paused ? 220 : 440, 0.08, { type: 'triangle', gain: 0.05, slide: detail.paused ? -80 : 160 })
+  if (id === 'move') tone(150, 0.07, { type: 'sawtooth', gain: 0.035, filter: 900, slide: 42 })
+  if (id === 'fire') {
+    tone(760 + upgrades.weapon * 8, 0.045, { type: 'square', gain: 0.035, filter: 3600, slide: 480 })
+    tone(190, 0.035, { type: 'triangle', gain: 0.02, filter: 900, delay: 0.012 })
+  }
+  if (id === 'enemyFire') tone(210 + state.wave * 4, 0.06, { type: 'sawtooth', gain: 0.028, filter: 1400, slide: -70 })
+  if (id === 'bulletHit') tone(320, 0.035, { type: 'triangle', gain: 0.024, filter: 1800, slide: -130 })
+  if (id === 'enemyDeath') {
+    const base = { scout: 360, bee: 440, guard: 280, sniper: 520, bomber: 220, tank: 170 }[detail.type] || 300
+    tone(base, 0.09, { type: 'square', gain: 0.05, filter: 1800, slide: -base * 0.42 })
+    noise(0.08, { gain: 0.026, filter: base * 4, q: 5 })
+  }
+  if (id === 'bossSpawn') {
+    tone(86, 0.4, { type: 'sawtooth', gain: 0.06, filter: 700, slide: 32 })
+    arpeggio([172, 129, 96], 0.09, { type: 'square', gain: 0.045, filter: 1200, duration: 0.12 })
+  }
+  if (id === 'bossDeath') {
+    tone(110, 0.55, { type: 'sawtooth', gain: 0.095, filter: 800, slide: -64 })
+    noise(0.42, { gain: 0.09, filter: 620, q: 1.8 })
+    arpeggio([880, 660, 440, 220], 0.06, { type: 'square', gain: 0.06, filter: 2600, duration: 0.11 })
+  }
+  if (id === 'pickup') {
+    const base = { life: 620, shield: 520, credits: 740, emp: 410, nuke: 180, pulse: 500, flame: 260, laser: 900, freeze: 680 }[detail.type] || 540
+    arpeggio([base, base * 1.25], 0.04, { type: 'triangle', gain: 0.052, filter: 3600, duration: 0.09 })
+  }
+  if (id === 'upgrade') arpeggio([330, 495, 660, 990], 0.045, { type: 'sawtooth', gain: 0.065, filter: 4500, duration: 0.095 })
+  if (id === 'shieldHit') {
+    tone(540, 0.12, { type: 'triangle', gain: 0.065, filter: 2600, slide: -210 })
+    noise(0.09, { gain: 0.03, filter: 2400, q: 8 })
+  }
+  if (id === 'lifeHit') {
+    tone(92, 0.22, { type: 'sawtooth', gain: 0.075, filter: 600, slide: -36 })
+    noise(0.15, { gain: 0.05, filter: 360, q: 2 })
+  }
+  if (id === 'gameOver') arpeggio([220, 185, 147, 110], 0.12, { type: 'sawtooth', gain: 0.07, filter: 1200, duration: 0.18 })
+  if (id === 'emp') {
+    tone(120, 0.25, { type: 'sawtooth', gain: 0.08, filter: 900, slide: 520 })
+    noise(0.22, { gain: 0.055, filter: 1800, q: 5 })
+  }
+  if (id === 'nuke') {
+    tone(58, 0.62, { type: 'sawtooth', gain: 0.12, filter: 520, slide: -28 })
+    noise(0.45, { gain: 0.12, filter: 280, q: 1.2, delay: 0.04 })
+  }
+  if (id === 'pulse') {
+    tone(180, 0.2, { type: 'square', gain: 0.075, filter: 1200, slide: 780 })
+    noise(0.18, { gain: 0.052, filter: 2200, q: 7 })
+  }
+  if (id === 'flame') noise(0.3, { gain: 0.08, filter: 740, q: 2 })
+  if (id === 'laser') tone(1280, 0.22, { type: 'sawtooth', gain: 0.07, filter: 5200, slide: 360 })
+  if (id === 'freeze') arpeggio([980, 740, 1108], 0.055, { type: 'triangle', gain: 0.058, filter: 5000, duration: 0.14 })
+  if (id === 'meteor') {
+    tone(130, 0.16, { type: 'sawtooth', gain: 0.045, filter: 720, slide: -42 })
+    noise(0.12, { gain: 0.045, filter: 520, q: 2 })
+  }
+  if (id === 'meteorHit') {
+    tone(80, 0.18, { type: 'sawtooth', gain: 0.08, filter: 560, slide: -34 })
+    noise(0.16, { gain: 0.075, filter: 420, q: 1.4 })
+  }
 }
 
 function loadProgress() {
@@ -369,6 +550,7 @@ function spawnSquad() {
   const bossType = bossTypeForWave(state.wave)
   if (bossType) {
     enemies.push(createEnemy(bossType, world.width / 2, 112 + (state.currentSquad - 1) * 18, 0, 0))
+    playSfx('bossSpawn')
     const escortTypes =
       bossType === 'finalBoss'
         ? ['tank', 'sniper', 'bomber', 'guard', 'bomber', 'sniper', 'tank']
@@ -452,6 +634,7 @@ function buyUpgrade(id) {
   if (state.maxLives > previousMaxLives) state.lives += state.maxLives - previousMaxLives
   if (state.maxShield > previousMaxShield) state.shield += state.maxShield - previousMaxShield
   spawnExplosion(player.x, player.y - 10, '#35c4df', 18)
+  playSfx('upgrade', { id })
   updateHud()
   saveProgress()
 }
@@ -491,6 +674,7 @@ function fireBullet() {
   }
 
   addEffect('muzzle', player.x, player.y - 30, '#e7fbff', 18 + upgrades.weapon)
+  playSfx('fire')
   player.cooldown = cooldown
 }
 
@@ -524,6 +708,7 @@ function enemyFire(enemy) {
   const speed = 250 + state.wave * 15
   const pattern = enemy.fireMode ?? enemy.pattern
   addEffect('muzzle', enemy.x, enemy.y + 18, enemyColor(enemy.type), 14)
+  playSfx('enemyFire')
   if (pattern === 'straight') {
     spawnEnemyBullet(enemy.x, enemy.y + 18, rand(-30, 30), speed)
   } else if (pattern === 'aimed') {
@@ -820,6 +1005,7 @@ function updatePowerups(dt) {
       if (['nuke', 'pulse', 'flame', 'laser', 'freeze'].includes(powerup.type)) state.inventory[powerup.type] += 1
       spawnExplosion(powerup.x + 15, powerup.y + 15, powerupColor(powerup.type), 18)
       floatText(powerup.x + 15, powerup.y, treasureLabel(powerup.type), powerupColor(powerup.type))
+      playSfx('pickup', { type: powerup.type })
       powerups.splice(index, 1)
       updateHud()
       saveProgress()
@@ -828,6 +1014,7 @@ function updatePowerups(dt) {
 }
 
 function spawnMeteor() {
+  playSfx('meteor')
   meteors.push({
     x: rand(40, world.width - 40),
     y: -40,
@@ -864,12 +1051,14 @@ function updateMeteors(dt) {
         meteor.life = 0
         state.screenShake = Math.max(state.screenShake, 0.2)
         flashScreen(0.1)
+        playSfx('meteorHit')
         spawnExplosion(meteor.x, meteor.y, '#ff8b67', 18)
         break
       }
     }
     if (rectsOverlap(meteorBox, playerBox)) {
       damagePlayer()
+      playSfx('meteorHit')
       spawnExplosion(meteor.x, meteor.y, '#ff8b67', 16)
       meteor.life = 0
     }
@@ -920,6 +1109,7 @@ function resolveCollisions() {
       bullets.splice(bulletIndex, 1)
       enemy.hp -= bullet.damage
       enemy.hitFlash = 0.12
+      playSfx('bulletHit')
       spawnExplosion(bullet.x + bullet.width / 2, bullet.y, bullet.color, 7)
 
       if (enemy.hp <= 0) {
@@ -930,6 +1120,7 @@ function resolveCollisions() {
         state.credits += killCredits
         floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
         spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 48 : 18)
+        enemyDeathSound(enemy.type)
         maybeDropTreasure(enemy)
         enemies.splice(enemyIndex, 1)
         updateHud()
@@ -977,6 +1168,7 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
     state.credits += Math.floor(enemy.credit * multiplier * (1 + Math.min(state.combo, 60) * 0.01))
     maybeDropTreasure(enemy)
     spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 42 : 16)
+    enemyDeathSound(enemy.type)
     enemies.splice(index, 1)
     changed = true
   }
@@ -990,6 +1182,7 @@ function completeWave() {
   state.credits += state.waveBonus
   if (state.wave % 2 === 0) state.empCharges += 1
   player.invincible = 1.2
+  playSfx('waveClear')
   waveTitle.textContent = state.wave % 5 === 0 ? 'Boss 擊破' : `第 ${state.wave} 波清除`
   waveText.textContent = `完成 ${state.squadsTotal} 個敵群，獲得 ${state.waveBonus} 晶片。現在應該至少能升級一到兩項，再進入第 ${state.wave + 1} 波。`
   waveOverlay.classList.add('active')
@@ -1002,6 +1195,7 @@ function startNextWave() {
   state.wave += 1
   state.betweenWaves = false
   waveOverlay.classList.remove('active')
+  playSfx('nextWave')
   spawnWave()
   updateHud()
 }
@@ -1013,6 +1207,7 @@ function damagePlayer() {
     player.invincible = 0.75
     state.screenShake = Math.max(state.screenShake, 0.25)
     flashScreen(0.12)
+    playSfx('shieldHit')
     spawnExplosion(player.x, player.y, '#35c4df', 18)
     updateHud()
     return
@@ -1022,6 +1217,7 @@ function damagePlayer() {
   player.invincible = 1.45
   state.screenShake = Math.max(state.screenShake, 0.48)
   flashScreen(0.24)
+  playSfx('lifeHit')
   spawnExplosion(player.x, player.y, '#e85d75', 30)
   updateHud()
   if (state.lives <= 0) endGame()
@@ -1029,6 +1225,7 @@ function damagePlayer() {
 
 function useSpecial() {
   if (!state.running || state.paused || state.over || state.betweenWaves || state.specialCooldown > 0 || state.empCharges <= 0) return
+  playSfx('emp')
   state.empCharges -= 1
   enemyBullets.length = 0
   for (let index = enemies.length - 1; index >= 0; index -= 1) {
@@ -1039,6 +1236,7 @@ function useSpecial() {
     if (enemy.hp <= 0) {
       state.score += Math.floor(enemy.score * 0.7)
       state.credits += Math.floor(enemy.credit * 0.7)
+      enemyDeathSound(enemy.type)
       enemies.splice(index, 1)
     }
   }
@@ -1055,6 +1253,7 @@ function useOneShot(type) {
   state.inventory[type] -= 1
 
   if (type === 'nuke') {
+    playSfx('nuke')
     enemyBullets.length = 0
     addEffect('shockwave', world.width / 2, world.height / 2, '#f4d35e', 70)
     for (let index = enemies.length - 1; index >= 0; index -= 1) {
@@ -1066,6 +1265,7 @@ function useOneShot(type) {
         state.score += Math.floor(enemy.score * 0.85)
         state.credits += Math.floor(enemy.credit * 0.85)
         maybeDropTreasure(enemy)
+        enemyDeathSound(enemy.type)
         enemies.splice(index, 1)
       }
     }
@@ -1075,6 +1275,7 @@ function useOneShot(type) {
   }
 
   if (type === 'pulse') {
+    playSfx('pulse')
     enemyBullets.length = 0
     addEffect('shockwave', player.x, player.y - 40, '#b987ff', 42)
     for (const enemy of enemies) {
@@ -1090,16 +1291,19 @@ function useOneShot(type) {
   }
 
   if (type === 'flame') {
+    playSfx('flame')
     state.flameTimer = 5.5 + upgrades.weapon * 0.05
     floatText(player.x, player.y - 70, '火焰噴射', '#ff8b67')
   }
 
   if (type === 'laser') {
+    playSfx('laser')
     state.laserTimer = 4.4 + upgrades.weapon * 0.035
     floatText(player.x, player.y - 70, '雷射貫穿', '#7bd6e8')
   }
 
   if (type === 'freeze') {
+    playSfx('freeze')
     state.freezeTimer = 5.2 + upgrades.shield * 0.04
     enemyBullets.length = Math.floor(enemyBullets.length / 3)
     floatText(player.x, player.y - 70, '時間凍結', '#9ad9ff')
@@ -1113,6 +1317,7 @@ function useOneShot(type) {
 function endGame() {
   state.running = false
   state.over = true
+  playSfx('gameOver')
   resultTitle.textContent = state.wave >= 8 ? '漂亮撤離' : '任務結束'
   resultText.textContent = `分數 ${state.score.toLocaleString()}，抵達第 ${state.wave} 波，剩餘晶片 ${state.credits.toLocaleString()}`
   gameOverOverlay.classList.add('active')
@@ -1121,6 +1326,7 @@ function endGame() {
 function togglePause() {
   if (!state.running || state.over || state.betweenWaves) return
   state.paused = !state.paused
+  playSfx('pause', { paused: state.paused })
   pauseButton.textContent = state.paused ? '繼續' : '暫停'
 }
 
@@ -1653,6 +1859,8 @@ function setButtonInput(buttonId, key) {
   const button = document.querySelector(buttonId)
   const down = (event) => {
     event.preventDefault()
+    initAudio()
+    if (key !== 'fire') playSfx('move')
     input[key] = true
     button.classList.add('pressed')
     if (key === 'fire') fireBullet()
@@ -1668,8 +1876,15 @@ function setButtonInput(buttonId, key) {
 }
 
 window.addEventListener('keydown', (event) => {
-  if (event.code === 'ArrowLeft' || event.code === 'KeyA') input.left = true
-  if (event.code === 'ArrowRight' || event.code === 'KeyD') input.right = true
+  initAudio()
+  if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
+    if (!input.left) playSfx('move')
+    input.left = true
+  }
+  if (event.code === 'ArrowRight' || event.code === 'KeyD') {
+    if (!input.right) playSfx('move')
+    input.right = true
+  }
   if (event.code === 'Space') {
     input.fire = true
     fireBullet()
@@ -1682,7 +1897,10 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyB') useOneShot('freeze')
   if (event.code === 'KeyQ') useOneShot('pulse')
   if (event.code === 'KeyP') togglePause()
-  if (event.code === 'KeyR') resetGame()
+  if (event.code === 'KeyR') {
+    playSfx('start')
+    resetGame()
+  }
   if (/^Digit[1-5]$/.test(event.code)) buyUpgrade(upgradeOrder[Number(event.code.slice(-1)) - 1])
 })
 
@@ -1693,13 +1911,40 @@ window.addEventListener('keyup', (event) => {
 })
 
 window.addEventListener('resize', resizeCanvas)
-startButton.addEventListener('click', resetGame)
-restartButton.addEventListener('click', resetGame)
-nextWaveButton.addEventListener('click', startNextWave)
-pauseButton.addEventListener('click', togglePause)
-specialButton.addEventListener('click', useSpecial)
-for (const [id, button] of Object.entries(oneShotButtons)) button.addEventListener('click', () => useOneShot(id))
-for (const id of upgradeOrder) upgradeEls[id].button.addEventListener('click', () => buyUpgrade(id))
+startButton.addEventListener('click', () => {
+  initAudio()
+  playSfx('start')
+  resetGame()
+})
+restartButton.addEventListener('click', () => {
+  initAudio()
+  playSfx('start')
+  resetGame()
+})
+nextWaveButton.addEventListener('click', () => {
+  initAudio()
+  startNextWave()
+})
+pauseButton.addEventListener('click', () => {
+  initAudio()
+  togglePause()
+})
+specialButton.addEventListener('click', () => {
+  initAudio()
+  useSpecial()
+})
+for (const [id, button] of Object.entries(oneShotButtons)) {
+  button.addEventListener('click', () => {
+    initAudio()
+    useOneShot(id)
+  })
+}
+for (const id of upgradeOrder) {
+  upgradeEls[id].button.addEventListener('click', () => {
+    initAudio()
+    buyUpgrade(id)
+  })
+}
 setButtonInput('#leftButton', 'left')
 setButtonInput('#rightButton', 'right')
 setButtonInput('#fireButton', 'fire')
