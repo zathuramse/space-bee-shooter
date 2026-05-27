@@ -74,6 +74,7 @@ const state = {
   laserTimer: 0,
   freezeTimer: 0,
   screenShake: 0,
+  empCharges: 0,
   inventory: {
     nuke: 0,
     pulse: 0,
@@ -106,8 +107,10 @@ const enemyBullets = []
 const enemies = []
 const particles = []
 const floatTexts = []
+const effects = []
 const powerups = []
 const stars = []
+const progressKey = 'space-bee-shooter-progress-v1'
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
@@ -126,6 +129,24 @@ function aimVector(fromX, fromY, toX, toY, speed) {
   const dy = toY - fromY
   const length = Math.hypot(dx, dy) || 1
   return { vx: (dx / length) * speed, vy: (dy / length) * speed }
+}
+
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(progressKey) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveProgress() {
+  const progress = {
+    credits: state.credits,
+    empCharges: state.empCharges,
+    inventory: { ...state.inventory },
+    upgrades: { ...upgrades },
+  }
+  localStorage.setItem(progressKey, JSON.stringify(progress))
 }
 
 function upgradeCost(id) {
@@ -147,7 +168,8 @@ function resetGame() {
   state.over = false
   state.betweenWaves = false
   state.score = 0
-  state.credits = 220
+  const saved = loadProgress()
+  state.credits = Math.max(500, Number(saved.credits) || 0)
   state.wave = 1
   state.lastTime = 0
   state.enemyDirection = 1
@@ -164,17 +186,18 @@ function resetGame() {
   state.laserTimer = 0
   state.freezeTimer = 0
   state.screenShake = 0
-  state.inventory.nuke = 0
-  state.inventory.pulse = 1
-  state.inventory.flame = 0
-  state.inventory.laser = 0
-  state.inventory.freeze = 0
+  state.empCharges = Math.max(2, Number(saved.empCharges) || 0)
+  state.inventory.nuke = Math.max(0, Number(saved.inventory?.nuke) || 0)
+  state.inventory.pulse = Math.max(1, Number(saved.inventory?.pulse) || 0)
+  state.inventory.flame = Math.max(0, Number(saved.inventory?.flame) || 0)
+  state.inventory.laser = Math.max(0, Number(saved.inventory?.laser) || 0)
+  state.inventory.freeze = Math.max(0, Number(saved.inventory?.freeze) || 0)
 
-  upgrades.weapon = 1
-  upgrades.engine = 1
-  upgrades.hull = 1
-  upgrades.shield = 1
-  upgrades.drone = 0
+  upgrades.weapon = clamp(Number(saved.upgrades?.weapon) || 1, 1, upgradeDefs.weapon.max)
+  upgrades.engine = clamp(Number(saved.upgrades?.engine) || 1, 1, upgradeDefs.engine.max)
+  upgrades.hull = clamp(Number(saved.upgrades?.hull) || 1, 1, upgradeDefs.hull.max)
+  upgrades.shield = clamp(Number(saved.upgrades?.shield) || 1, 1, upgradeDefs.shield.max)
+  upgrades.drone = clamp(Number(saved.upgrades?.drone) || 0, 0, upgradeDefs.drone.max)
   applyUpgradeStats()
   state.lives = state.maxLives
   state.shield = state.maxShield
@@ -189,6 +212,7 @@ function resetGame() {
   enemies.length = 0
   particles.length = 0
   floatTexts.length = 0
+  effects.length = 0
   powerups.length = 0
   pauseButton.textContent = '暫停'
   specialButton.textContent = 'EMP'
@@ -198,6 +222,7 @@ function resetGame() {
   waveOverlay.classList.remove('active')
   gameOverOverlay.classList.remove('active')
   updateHud()
+  saveProgress()
 }
 
 function spawnStars() {
@@ -316,7 +341,8 @@ function updateHud() {
   livesEl.textContent = `${state.lives}/${state.maxLives}`
   shieldEl.textContent = `${state.shield}/${state.maxShield}`
   weaponEl.textContent = `Lv.${upgrades.weapon}`
-  specialButton.textContent = state.specialCooldown > 0 ? Math.ceil(state.specialCooldown).toString() : 'EMP'
+  specialButton.textContent = state.specialCooldown > 0 ? `EMP ${Math.ceil(state.specialCooldown)}` : `EMP ${state.empCharges}`
+  specialButton.disabled = state.empCharges <= 0 || state.specialCooldown > 0 || !state.running || state.over || state.betweenWaves
   syncUpgradeCards()
   syncArsenal()
 }
@@ -356,6 +382,7 @@ function buyUpgrade(id) {
   if (state.maxShield > previousMaxShield) state.shield += state.maxShield - previousMaxShield
   spawnExplosion(player.x, player.y - 10, '#35c4df', 18)
   updateHud()
+  saveProgress()
 }
 
 function bulletPattern() {
@@ -392,6 +419,7 @@ function fireBullet() {
     })
   }
 
+  addEffect('muzzle', player.x, player.y - 30, '#e7fbff', 18 + upgrades.weapon)
   player.cooldown = cooldown
 }
 
@@ -424,6 +452,7 @@ function spawnEnemyBullet(x, y, vx, vy, size = 10, color = '#e85d75') {
 function enemyFire(enemy) {
   const speed = 250 + state.wave * 15
   const pattern = enemy.fireMode ?? enemy.pattern
+  addEffect('muzzle', enemy.x, enemy.y + 18, enemyColor(enemy.type), 14)
   if (pattern === 'straight') {
     spawnEnemyBullet(enemy.x, enemy.y + 18, rand(-30, 30), speed)
   } else if (pattern === 'aimed') {
@@ -472,6 +501,10 @@ function spawnExplosion(x, y, color, count = 14) {
 
 function floatText(x, y, text, color = '#f4d35e') {
   floatTexts.push({ x, y, text, color, life: 0.95, maxLife: 0.95 })
+}
+
+function addEffect(type, x, y, color = '#f4d35e', radius = 24) {
+  effects.push({ type, x, y, color, radius, life: 0.75, maxLife: 0.75 })
 }
 
 function spawnPowerup(type = '') {
@@ -674,12 +707,16 @@ function updatePowerups(dt) {
       if (powerup.type === 'life') state.lives = clamp(state.lives + 1, 0, state.maxLives)
       if (powerup.type === 'shield') state.shield = clamp(state.shield + 1, 0, state.maxShield)
       if (powerup.type === 'credits') state.credits += 220 + state.wave * 28
-      if (powerup.type === 'emp') state.specialCooldown = 0
+      if (powerup.type === 'emp') {
+        state.specialCooldown = 0
+        state.empCharges += 1
+      }
       if (['nuke', 'pulse', 'flame', 'laser', 'freeze'].includes(powerup.type)) state.inventory[powerup.type] += 1
       spawnExplosion(powerup.x + 15, powerup.y + 15, powerupColor(powerup.type), 18)
       floatText(powerup.x + 15, powerup.y, treasureLabel(powerup.type), powerupColor(powerup.type))
       powerups.splice(index, 1)
       updateHud()
+      saveProgress()
     }
   }
 }
@@ -705,6 +742,15 @@ function updateFloatTexts(dt) {
   }
 }
 
+function updateEffects(dt) {
+  for (let index = effects.length - 1; index >= 0; index -= 1) {
+    const effect = effects[index]
+    effect.life -= dt
+    effect.radius += (effect.type === 'shockwave' ? 220 : 60) * dt
+    if (effect.life <= 0) effects.splice(index, 1)
+  }
+}
+
 function resolveCollisions() {
   for (let bulletIndex = bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
     const bullet = bullets[bulletIndex]
@@ -727,6 +773,7 @@ function resolveCollisions() {
         maybeDropTreasure(enemy)
         enemies.splice(enemyIndex, 1)
         updateHud()
+        saveProgress()
       }
       break
     }
@@ -753,6 +800,7 @@ function resolveCollisions() {
       floatText(world.width / 2, 92, `敵群 ${state.currentSquad}/${state.squadsTotal}`, '#f4d35e')
       spawnSquad()
       updateHud()
+      saveProgress()
     } else {
       completeWave()
     }
@@ -760,6 +808,7 @@ function resolveCollisions() {
 }
 
 function cleanupDefeatedEnemies(multiplier = 0.75) {
+  let changed = false
   for (let index = enemies.length - 1; index >= 0; index -= 1) {
     const enemy = enemies[index]
     if (enemy.hp > 0) continue
@@ -768,7 +817,9 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
     maybeDropTreasure(enemy)
     spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 42 : 16)
     enemies.splice(index, 1)
+    changed = true
   }
+  if (changed) saveProgress()
 }
 
 function completeWave() {
@@ -776,11 +827,13 @@ function completeWave() {
   state.waveBonus = 420 + state.wave * 120 + state.squadsTotal * 90
   state.score += 800 + state.wave * 80
   state.credits += state.waveBonus
+  if (state.wave % 2 === 0) state.empCharges += 1
   player.invincible = 1.2
   waveTitle.textContent = state.wave % 5 === 0 ? 'Boss 擊破' : `第 ${state.wave} 波清除`
   waveText.textContent = `完成 ${state.squadsTotal} 個敵群，獲得 ${state.waveBonus} 晶片。現在應該至少能升級一到兩項，再進入第 ${state.wave + 1} 波。`
   waveOverlay.classList.add('active')
   updateHud()
+  saveProgress()
 }
 
 function startNextWave() {
@@ -810,7 +863,8 @@ function damagePlayer() {
 }
 
 function useSpecial() {
-  if (!state.running || state.paused || state.over || state.betweenWaves || state.specialCooldown > 0) return
+  if (!state.running || state.paused || state.over || state.betweenWaves || state.specialCooldown > 0 || state.empCharges <= 0) return
+  state.empCharges -= 1
   enemyBullets.length = 0
   for (let index = enemies.length - 1; index >= 0; index -= 1) {
     const enemy = enemies[index]
@@ -823,8 +877,10 @@ function useSpecial() {
     }
   }
   state.specialCooldown = clamp(14 - upgrades.shield - upgrades.drone, 7, 14)
+  addEffect('shockwave', player.x, player.y - 40, '#b987ff', 34)
   spawnExplosion(player.x, player.y - 40, '#b987ff', 54)
   updateHud()
+  saveProgress()
 }
 
 function useOneShot(type) {
@@ -833,6 +889,7 @@ function useOneShot(type) {
 
   if (type === 'nuke') {
     enemyBullets.length = 0
+    addEffect('shockwave', world.width / 2, world.height / 2, '#f4d35e', 70)
     for (let index = enemies.length - 1; index >= 0; index -= 1) {
       const enemy = enemies[index]
       enemy.hp -= enemy.type === 'boss' ? 55 + upgrades.weapon * 2 : 999
@@ -850,6 +907,7 @@ function useOneShot(type) {
 
   if (type === 'pulse') {
     enemyBullets.length = 0
+    addEffect('shockwave', player.x, player.y - 40, '#b987ff', 42)
     for (const enemy of enemies) {
       enemy.hp -= 9 + Math.floor(upgrades.weapon / 4)
       spawnExplosion(enemy.x, enemy.y, '#b987ff', 10)
@@ -878,6 +936,7 @@ function useOneShot(type) {
 
   cleanupDefeatedEnemies(0.85)
   updateHud()
+  saveProgress()
 }
 
 function endGame() {
@@ -899,6 +958,7 @@ function update(dt) {
     updateStars(dt)
     updateParticles(dt)
     updateFloatTexts(dt)
+    updateEffects(dt)
     return
   }
 
@@ -910,6 +970,7 @@ function update(dt) {
   updatePowerups(dt)
   updateParticles(dt)
   updateFloatTexts(dt)
+  updateEffects(dt)
   resolveCollisions()
   updateHud()
 }
@@ -1115,6 +1176,7 @@ function drawBullets() {
 
 function drawWeaponEffects() {
   if (state.flameTimer > 0) {
+    const flicker = 16 + Math.sin(performance.now() / 58) * 10
     const flame = ctx.createLinearGradient(player.x, player.y, player.x, player.y - 330)
     flame.addColorStop(0, 'rgba(255, 139, 103, 0.75)')
     flame.addColorStop(0.45, 'rgba(244, 211, 94, 0.32)')
@@ -1122,8 +1184,8 @@ function drawWeaponEffects() {
     ctx.fillStyle = flame
     ctx.beginPath()
     ctx.moveTo(player.x - 18, player.y - 20)
-    ctx.lineTo(player.x - 150, player.y - 330)
-    ctx.lineTo(player.x + 150, player.y - 330)
+    ctx.lineTo(player.x - 150 - flicker, player.y - 330)
+    ctx.lineTo(player.x + 150 + flicker, player.y - 330)
     ctx.lineTo(player.x + 18, player.y - 20)
     ctx.closePath()
     ctx.fill()
@@ -1131,7 +1193,7 @@ function drawWeaponEffects() {
 
   if (state.laserTimer > 0) {
     ctx.save()
-    ctx.globalAlpha = 0.78
+    ctx.globalAlpha = 0.68 + Math.sin(performance.now() / 80) * 0.12
     ctx.shadowBlur = 22
     ctx.shadowColor = '#7bd6e8'
     ctx.fillStyle = '#7bd6e8'
@@ -1185,6 +1247,30 @@ function drawFloatTexts() {
   ctx.globalAlpha = 1
 }
 
+function drawEffects() {
+  ctx.save()
+  for (const effect of effects) {
+    const alpha = clamp(effect.life / effect.maxLife, 0, 1)
+    ctx.globalAlpha = alpha
+    ctx.strokeStyle = effect.color
+    ctx.fillStyle = effect.color
+    ctx.shadowBlur = effect.type === 'shockwave' ? 28 : 18
+    ctx.shadowColor = effect.color
+    if (effect.type === 'shockwave') {
+      ctx.lineWidth = 4
+      ctx.beginPath()
+      ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.arc(effect.x, effect.y, effect.radius * alpha, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  ctx.restore()
+  ctx.globalAlpha = 1
+}
+
 function drawBossBar() {
   const boss = enemies.find((enemy) => enemy.type === 'boss')
   if (!boss) return
@@ -1230,6 +1316,7 @@ function draw() {
   drawPowerups()
   drawBullets()
   drawWeaponEffects()
+  drawEffects()
   for (const enemy of enemies) drawEnemy(enemy)
   drawPlayer()
   drawParticles()

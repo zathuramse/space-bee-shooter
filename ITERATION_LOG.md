@@ -160,3 +160,23 @@
 - V158: Prepared the expanded system for syntax verification.
 - V159: Prepared the expanded system for browser screenshot verification.
 - V160: Completed the requested 100-version upgrade batch.
+- V161: Raised minimum starting credits to 500.
+- V162: Added local persistent progress storage.
+- V163: Made credits persist across restarts.
+- V164: Made upgrade levels persist across restarts.
+- V165: Made one-shot weapon inventory persist across restarts.
+- V166: Added EMP charge inventory.
+- V167: Made EMP charges persist across restarts.
+- V168: Changed EMP from pure cooldown to charge-based special usage.
+- V169: EMP treasure now adds a charge instead of only resetting cooldown.
+- V170: Wave clears can now add extra EMP charges.
+- V171: Added muzzle flash effects to player attacks.
+- V172: Added muzzle flash effects to enemy attacks.
+- V173: Added generic combat effect timeline.
+- V174: Added shockwave rendering.
+- V175: Added nuke shockwave effect.
+- V176: Added pulse shockwave effect.
+- V177: Added EMP shockwave effect.
+- V178: Added flame flicker animation.
+- V179: Added laser pulse animation.
+- V180: Saved progress after kills, upgrades, pickups, wave rewards, and weapon usage.
