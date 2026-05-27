@@ -45,7 +45,9 @@ button {
 .upgrade-panel article {
   border: 1px solid rgba(173, 208, 214, 0.22);
   border-radius: 8px;
-  background: rgba(10, 22, 31, 0.78);
+  background:
+    linear-gradient(145deg, rgba(18, 42, 52, 0.78), rgba(8, 17, 25, 0.82)),
+    rgba(10, 22, 31, 0.78);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
@@ -85,7 +87,7 @@ button {
 
 canvas {
   width: 100%;
-  height: min(66vh, 650px);
+  height: min(68vh, 680px);
   min-height: 500px;
   display: block;
   background: #050b12;
@@ -191,30 +193,44 @@ canvas {
   grid-template-rows: auto auto minmax(32px, 1fr) auto;
   gap: 6px;
   padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.upgrade-panel article::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(53, 196, 223, 0.16), transparent 36%, rgba(244, 211, 94, 0.1));
+  opacity: 0.55;
 }
 
 .upgrade-panel strong {
+  position: relative;
   color: #ffffff;
   font-size: 22px;
   line-height: 1;
 }
 
 .upgrade-panel small {
+  position: relative;
   color: #bfd0d5;
   line-height: 1.35;
 }
 
 .upgrade-panel button {
+  position: relative;
   width: 100%;
   padding: 0 10px;
-  background: #203743;
+  background: linear-gradient(180deg, #244a56, #17303a);
   color: #eff9fb;
   border: 1px solid rgba(173, 208, 214, 0.25);
   font-weight: 900;
 }
 
 .upgrade-panel button:not(:disabled):hover {
-  background: #35c4df;
+  background: linear-gradient(180deg, #52d6ea, #35c4df);
   color: #041016;
 }
 

@@ -25,11 +25,11 @@ const input = { left: false, right: false, fire: false }
 const upgradeOrder = ['weapon', 'engine', 'hull', 'shield', 'drone']
 
 const upgradeDefs = {
-  weapon: { label: '武器', max: 6, base: 130, step: 105 },
-  engine: { label: '引擎', max: 6, base: 110, step: 95 },
-  hull: { label: '船體', max: 5, base: 150, step: 130 },
-  shield: { label: '護盾', max: 5, base: 140, step: 115 },
-  drone: { label: '僚機', max: 4, base: 180, step: 150 },
+  weapon: { label: '武器', max: 6, base: 70, step: 65 },
+  engine: { label: '引擎', max: 6, base: 60, step: 55 },
+  hull: { label: '船體', max: 5, base: 85, step: 70 },
+  shield: { label: '護盾', max: 5, base: 80, step: 65 },
+  drone: { label: '僚機', max: 4, base: 105, step: 85 },
 }
 
 const upgradeEls = {
@@ -61,6 +61,8 @@ const state = {
   droneTimer: 0,
   specialCooldown: 0,
   waveBonus: 0,
+  currentSquad: 1,
+  squadsTotal: 1,
 }
 
 const upgrades = {
@@ -85,6 +87,7 @@ const bullets = []
 const enemyBullets = []
 const enemies = []
 const particles = []
+const floatTexts = []
 const powerups = []
 const stars = []
 
@@ -114,8 +117,8 @@ function upgradeCost(id) {
 
 function applyUpgradeStats() {
   player.speed = 380 + upgrades.engine * 62
-  state.maxLives = 2 + upgrades.hull
-  state.maxShield = upgrades.shield
+  state.maxLives = 3 + upgrades.hull
+  state.maxShield = upgrades.shield + 1
   state.lives = clamp(state.lives, 0, state.maxLives)
   state.shield = clamp(state.shield, 0, state.maxShield)
 }
@@ -126,17 +129,19 @@ function resetGame() {
   state.over = false
   state.betweenWaves = false
   state.score = 0
-  state.credits = 80
+  state.credits = 220
   state.wave = 1
   state.lastTime = 0
   state.enemyDirection = 1
   state.enemyStepDown = 0
-  state.enemyShotTimer = 1.1
-  state.diveTimer = 2.4
-  state.powerupTimer = 6
+  state.enemyShotTimer = 1.45
+  state.diveTimer = 3.6
+  state.powerupTimer = 5
   state.droneTimer = 0
   state.specialCooldown = 0
   state.waveBonus = 0
+  state.currentSquad = 1
+  state.squadsTotal = 1
 
   upgrades.weapon = 1
   upgrades.engine = 1
@@ -156,6 +161,7 @@ function resetGame() {
   enemyBullets.length = 0
   enemies.length = 0
   particles.length = 0
+  floatTexts.length = 0
   powerups.length = 0
   pauseButton.textContent = '暫停'
   specialButton.textContent = 'EMP'
@@ -181,15 +187,15 @@ function spawnStars() {
 }
 
 function enemyStats(type) {
-  const waveScale = Math.floor(state.wave / 3)
+  const waveScale = Math.floor(Math.max(0, state.wave - 1) / 4)
   const table = {
-    scout: { hp: 1 + waveScale, width: 38, height: 30, score: 70, credit: 14, pattern: 'straight' },
-    bee: { hp: 1 + waveScale, width: 44, height: 34, score: 95, credit: 18, pattern: 'aimed' },
-    guard: { hp: 2 + waveScale, width: 48, height: 36, score: 130, credit: 24, pattern: 'spread' },
-    sniper: { hp: 1 + waveScale, width: 40, height: 32, score: 150, credit: 28, pattern: 'snipe' },
-    bomber: { hp: 3 + waveScale, width: 54, height: 40, score: 190, credit: 34, pattern: 'burst' },
-    tank: { hp: 5 + waveScale * 2, width: 60, height: 44, score: 260, credit: 48, pattern: 'heavy' },
-    boss: { hp: 32 + state.wave * 7, width: 142, height: 78, score: 1200, credit: 260, pattern: 'boss' },
+    scout: { hp: 1 + waveScale, width: 38, height: 30, score: 85, credit: 28, pattern: 'straight' },
+    bee: { hp: 1 + waveScale, width: 44, height: 34, score: 115, credit: 34, pattern: 'aimed' },
+    guard: { hp: 2 + waveScale, width: 48, height: 36, score: 155, credit: 46, pattern: 'spread' },
+    sniper: { hp: 1 + waveScale, width: 40, height: 32, score: 175, credit: 54, pattern: 'snipe' },
+    bomber: { hp: 2 + waveScale, width: 54, height: 40, score: 220, credit: 66, pattern: 'burst' },
+    tank: { hp: 4 + waveScale * 2, width: 60, height: 44, score: 300, credit: 88, pattern: 'heavy' },
+    boss: { hp: 30 + state.wave * 6, width: 142, height: 78, score: 1500, credit: 420, pattern: 'boss' },
   }
   return table[type]
 }
@@ -222,36 +228,49 @@ function spawnWave() {
   enemyBullets.length = 0
   bullets.length = 0
   powerups.length = 0
+  state.currentSquad = 1
+  state.squadsTotal = state.wave % 5 === 0 ? 2 : clamp(2 + Math.floor(state.wave / 3), 2, 4)
+  spawnSquad()
+}
+
+function spawnSquad() {
+  enemies.length = 0
+  enemyBullets.length = 0
   state.enemyDirection = 1
   state.enemyStepDown = 0
-  state.enemyShotTimer = clamp(1.05 - state.wave * 0.035, 0.42, 1.05)
-  state.diveTimer = clamp(2.4 - state.wave * 0.07, 1.05, 2.4)
-  state.powerupTimer = rand(6, 9)
+  state.enemyShotTimer = clamp(1.35 - state.wave * 0.025, 0.62, 1.35)
+  state.diveTimer = clamp(3.4 - state.wave * 0.055, 1.45, 3.4)
+  state.powerupTimer = rand(5, 8)
   state.shield = state.maxShield
   player.invincible = 1.1
 
   if (state.wave % 5 === 0) {
-    enemies.push(createEnemy('boss', world.width / 2, 112))
-    const escortTypes = state.wave >= 10 ? ['sniper', 'guard', 'bee', 'guard', 'sniper'] : ['bee', 'guard', 'bee']
+    enemies.push(createEnemy('boss', world.width / 2, 112 + (state.currentSquad - 1) * 18))
+    const escortTypes =
+      state.currentSquad === 1
+        ? ['bee', 'guard', 'bee', 'guard']
+        : state.wave >= 10
+          ? ['sniper', 'guard', 'bomber', 'guard', 'sniper']
+          : ['bee', 'guard', 'sniper', 'guard', 'bee']
     escortTypes.forEach((type, index) => {
-      enemies.push(createEnemy(type, 260 + index * 110, 222, 1))
+      enemies.push(createEnemy(type, 210 + index * 110, 232, 1))
     })
     return
   }
 
-  const rows = clamp(3 + Math.floor(state.wave / 2), 3, 6)
-  const cols = clamp(7 + Math.floor(state.wave / 3), 7, 11)
-  const gapX = 70
-  const gapY = 48
+  const rows = clamp(4 + Math.floor((state.wave + state.currentSquad) / 3), 4, 6)
+  const cols = clamp(8 + Math.floor((state.wave + state.currentSquad) / 4), 8, 12)
+  const gapX = clamp(68 - state.currentSquad * 2, 60, 68)
+  const gapY = 44
   const startX = (world.width - (cols - 1) * gapX) / 2
-  const startY = 72
+  const startY = 62
 
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
       let type = row === 0 ? 'bee' : row < 3 ? 'scout' : 'guard'
-      if (state.wave >= 3 && row === 0 && col % 3 === 0) type = 'sniper'
-      if (state.wave >= 4 && row === rows - 1 && col % 2 === 0) type = 'bomber'
-      if (state.wave >= 7 && row === rows - 1 && col % 4 === 0) type = 'tank'
+      if (state.wave >= 3 && state.currentSquad >= 2 && row === 0 && col % 3 === 0) type = 'sniper'
+      if (state.wave >= 4 && state.currentSquad >= 2 && row === rows - 1 && col % 2 === 0) type = 'bomber'
+      if (state.wave >= 7 && state.currentSquad >= 3 && row === rows - 1 && col % 4 === 0) type = 'tank'
       enemies.push(createEnemy(type, startX + col * gapX, startY + row * gapY, row))
     }
   }
@@ -406,6 +425,10 @@ function spawnExplosion(x, y, color, count = 14) {
   }
 }
 
+function floatText(x, y, text, color = '#f4d35e') {
+  floatTexts.push({ x, y, text, color, life: 0.95, maxLife: 0.95 })
+}
+
 function spawnPowerup() {
   const roll = Math.random()
   const type = roll > 0.78 ? 'life' : roll > 0.55 ? 'shield' : roll > 0.32 ? 'credits' : 'emp'
@@ -493,14 +516,14 @@ function updateEnemies(dt) {
   if (state.enemyShotTimer <= 0 && enemies.length > 0) {
     const shooter = enemies[Math.floor(rand(0, enemies.length))]
     enemyFire(shooter)
-    state.enemyShotTimer = clamp((0.98 - state.wave * 0.034) * shooter.fireBias, 0.34, 1.05)
+    state.enemyShotTimer = clamp((1.28 - state.wave * 0.026) * shooter.fireBias, 0.58, 1.28)
   }
 
   state.diveTimer -= dt
   if (state.diveTimer <= 0 && enemies.length > 0) {
     const candidates = enemies.filter((enemy) => !enemy.diving && ['scout', 'bee', 'sniper', 'bomber'].includes(enemy.type))
     startDive(candidates[Math.floor(rand(0, candidates.length))])
-    state.diveTimer = clamp(2.45 - state.wave * 0.08, 0.92, 2.45)
+    state.diveTimer = clamp(3.25 - state.wave * 0.055, 1.35, 3.25)
   }
 
   if (enemies.some((enemy) => enemy.y > player.y - 24)) damagePlayer()
@@ -524,7 +547,7 @@ function updatePowerups(dt) {
     if (rectsOverlap(powerup, { x: player.x - 26, y: player.y - 20, width: 52, height: 42 })) {
       if (powerup.type === 'life') state.lives = clamp(state.lives + 1, 0, state.maxLives)
       if (powerup.type === 'shield') state.shield = clamp(state.shield + 1, 0, state.maxShield)
-      if (powerup.type === 'credits') state.credits += 120 + state.wave * 12
+      if (powerup.type === 'credits') state.credits += 220 + state.wave * 28
       if (powerup.type === 'emp') state.specialCooldown = 0
       spawnExplosion(powerup.x + 15, powerup.y + 15, powerupColor(powerup.type), 18)
       powerups.splice(index, 1)
@@ -545,6 +568,15 @@ function updateParticles(dt) {
   }
 }
 
+function updateFloatTexts(dt) {
+  for (let index = floatTexts.length - 1; index >= 0; index -= 1) {
+    const item = floatTexts[index]
+    item.y -= 34 * dt
+    item.life -= dt
+    if (item.life <= 0) floatTexts.splice(index, 1)
+  }
+}
+
 function resolveCollisions() {
   for (let bulletIndex = bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
     const bullet = bullets[bulletIndex]
@@ -558,8 +590,11 @@ function resolveCollisions() {
       spawnExplosion(bullet.x + bullet.width / 2, bullet.y, bullet.color, 7)
 
       if (enemy.hp <= 0) {
-        state.score += enemy.score + state.wave * 10
-        state.credits += enemy.credit
+        const killScore = enemy.score + state.wave * 10
+        const killCredits = enemy.credit
+        state.score += killScore
+        state.credits += killCredits
+        floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
         spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 48 : 18)
         enemies.splice(enemyIndex, 1)
         updateHud()
@@ -581,17 +616,28 @@ function resolveCollisions() {
     if (rectsOverlap(enemyBox, playerBox)) damagePlayer()
   }
 
-  if (enemies.length === 0 && state.running && !state.betweenWaves) completeWave()
+  if (enemies.length === 0 && state.running && !state.betweenWaves) {
+    if (state.currentSquad < state.squadsTotal) {
+      state.currentSquad += 1
+      state.score += 180 + state.wave * 20
+      state.credits += 90 + state.wave * 18
+      floatText(world.width / 2, 92, `敵群 ${state.currentSquad}/${state.squadsTotal}`, '#f4d35e')
+      spawnSquad()
+      updateHud()
+    } else {
+      completeWave()
+    }
+  }
 }
 
 function completeWave() {
   state.betweenWaves = true
-  state.waveBonus = 180 + state.wave * 55
-  state.score += 500 + state.wave * 35
+  state.waveBonus = 420 + state.wave * 120 + state.squadsTotal * 90
+  state.score += 800 + state.wave * 80
   state.credits += state.waveBonus
   player.invincible = 1.2
   waveTitle.textContent = state.wave % 5 === 0 ? 'Boss 擊破' : `第 ${state.wave} 波清除`
-  waveText.textContent = `獲得 ${state.waveBonus} 晶片。建議先升武器或引擎，再進入第 ${state.wave + 1} 波。`
+  waveText.textContent = `完成 ${state.squadsTotal} 個敵群，獲得 ${state.waveBonus} 晶片。現在應該至少能升級一到兩項，再進入第 ${state.wave + 1} 波。`
   waveOverlay.classList.add('active')
   updateHud()
 }
@@ -658,6 +704,7 @@ function update(dt) {
   if (!state.running || state.paused || state.betweenWaves) {
     updateStars(dt)
     updateParticles(dt)
+    updateFloatTexts(dt)
     return
   }
 
@@ -667,6 +714,7 @@ function update(dt) {
   updateEnemies(dt)
   updatePowerups(dt)
   updateParticles(dt)
+  updateFloatTexts(dt)
   resolveCollisions()
   updateHud()
 }
@@ -717,6 +765,22 @@ function drawBackground() {
   gradient.addColorStop(1, 'rgba(244, 211, 94, 0.08)')
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, world.width, world.height)
+
+  const nebula = ctx.createRadialGradient(world.width * 0.72, world.height * 0.24, 20, world.width * 0.72, world.height * 0.24, 360)
+  nebula.addColorStop(0, 'rgba(53, 196, 223, 0.18)')
+  nebula.addColorStop(0.38, 'rgba(185, 135, 255, 0.1)')
+  nebula.addColorStop(1, 'rgba(185, 135, 255, 0)')
+  ctx.fillStyle = nebula
+  ctx.fillRect(0, 0, world.width, world.height)
+
+  ctx.strokeStyle = 'rgba(123, 214, 232, 0.08)'
+  ctx.lineWidth = 1
+  for (let y = 70; y < world.height; y += 70) {
+    ctx.beginPath()
+    ctx.moveTo(0, y + Math.sin(y) * 8)
+    ctx.bezierCurveTo(240, y - 22, 620, y + 22, world.width, y - 10)
+    ctx.stroke()
+  }
 }
 
 function drawPlayer() {
@@ -852,6 +916,20 @@ function drawParticles() {
   ctx.globalAlpha = 1
 }
 
+function drawFloatTexts() {
+  ctx.save()
+  ctx.font = '900 16px system-ui'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const item of floatTexts) {
+    ctx.globalAlpha = clamp(item.life / item.maxLife, 0, 1)
+    ctx.fillStyle = item.color
+    ctx.fillText(item.text, item.x, item.y)
+  }
+  ctx.restore()
+  ctx.globalAlpha = 1
+}
+
 function drawBossBar() {
   const boss = enemies.find((enemy) => enemy.type === 'boss')
   if (!boss) return
@@ -863,6 +941,21 @@ function drawBossBar() {
   ctx.font = '900 13px system-ui'
   ctx.textAlign = 'center'
   ctx.fillText(`BOSS WAVE ${state.wave}`, world.width / 2, 18)
+}
+
+function drawWaveStatus() {
+  if (!state.running || state.over) return
+  ctx.save()
+  ctx.fillStyle = 'rgba(5, 11, 18, 0.62)'
+  ctx.beginPath()
+  roundedRect(20, 18, 210, 34, 8)
+  ctx.fill()
+  ctx.fillStyle = '#dff8ff'
+  ctx.font = '900 13px system-ui'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`Wave ${state.wave}  敵群 ${state.currentSquad}/${state.squadsTotal}  剩 ${enemies.length}`, 34, 35)
+  ctx.restore()
 }
 
 function drawPaused() {
@@ -882,6 +975,8 @@ function draw() {
   for (const enemy of enemies) drawEnemy(enemy)
   drawPlayer()
   drawParticles()
+  drawFloatTexts()
+  drawWaveStatus()
   drawBossBar()
   drawPaused()
 }

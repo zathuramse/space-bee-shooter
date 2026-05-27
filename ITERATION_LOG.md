@@ -50,3 +50,13 @@
 - V48: Mobile layout now supports the larger upgrade panel.
 - V49: README now documents controls, upgrade tracks, and enemy behaviors.
 - V50: Reverified the upgraded game with syntax, HTTP, and browser screenshot checks.
+- V51: Reworked each wave into multiple squads so a wave lasts longer.
+- V52: Added squad progression state and on-canvas wave progress text.
+- V53: Added squad-clear score and credit rewards before the full wave ends.
+- V54: Lowered upgrade costs across weapon, engine, hull, shield, and drone.
+- V55: Increased starting credits so the first upgrade comes sooner.
+- V56: Increased kill, squad-clear, wave-clear, and credit powerup income.
+- V57: Increased starting life and shield capacity for a more forgiving early game.
+- V58: Slowed early enemy fire and dive cadence to reduce sudden difficulty spikes.
+- V59: Added floating score and credit text on kills.
+- V60: Added nebula lighting, subtle background lanes, and stronger upgrade-card styling.
