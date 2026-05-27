@@ -170,7 +170,8 @@ function resetGame() {
   state.score = 0
   const saved = loadProgress()
   state.credits = Math.max(500, Number(saved.credits) || 0)
-  state.wave = 1
+  const debugWave = Number(new URLSearchParams(window.location.search).get('wave'))
+  state.wave = Number.isFinite(debugWave) && debugWave > 0 ? Math.floor(debugWave) : 1
   state.lastTime = 0
   state.enemyDirection = 1
   state.enemyStepDown = 0
@@ -238,6 +239,27 @@ function spawnStars() {
   }
 }
 
+function bossTypeForWave(wave) {
+  if (wave === 60) return 'finalBoss'
+  if (wave % 15 === 0) return 'majorBoss'
+  if (wave % 5 === 0) return 'miniBoss'
+  return ''
+}
+
+function isBossType(type) {
+  return ['miniBoss', 'majorBoss', 'finalBoss', 'boss'].includes(type)
+}
+
+function bossName(type) {
+  const names = {
+    miniBoss: '小魔王：蜂群隊長',
+    majorBoss: '大魔王：虛空魟艦',
+    finalBoss: '最終魔王：日冕女王',
+    boss: 'BOSS',
+  }
+  return names[type] ?? 'BOSS'
+}
+
 function enemyStats(type) {
   const waveScale = Math.floor(Math.max(0, state.wave - 1) / 4)
   const table = {
@@ -247,7 +269,10 @@ function enemyStats(type) {
     sniper: { hp: 1 + waveScale, width: 40, height: 32, score: 175, credit: 54, pattern: 'snipe' },
     bomber: { hp: 2 + waveScale, width: 54, height: 40, score: 220, credit: 66, pattern: 'burst' },
     tank: { hp: 4 + waveScale * 2, width: 60, height: 44, score: 300, credit: 88, pattern: 'heavy' },
-    boss: { hp: 30 + state.wave * 6, width: 142, height: 78, score: 1500, credit: 420, pattern: 'boss' },
+    miniBoss: { hp: 34 + state.wave * 7, width: 134, height: 74, score: 1500, credit: 420, pattern: 'miniBoss' },
+    majorBoss: { hp: 78 + state.wave * 11, width: 176, height: 92, score: 3200, credit: 900, pattern: 'majorBoss' },
+    finalBoss: { hp: 520 + state.wave * 18, width: 218, height: 128, score: 12000, credit: 3600, pattern: 'finalBoss' },
+    boss: { hp: 34 + state.wave * 7, width: 142, height: 78, score: 1500, credit: 420, pattern: 'miniBoss' },
   }
   return table[type]
 }
@@ -256,8 +281,8 @@ function createEnemy(type, x, y, row = 0, col = 0) {
   const stats = enemyStats(type)
   const routes = ['drift', 'zigzag', 'swoop', 'orbit', 'ladder', 'split', 'rush']
   const fireModes = ['straight', 'aimed', 'spread', 'snipe', 'burst', 'heavy']
-  const route = type === 'boss' ? 'boss' : routes[(state.wave + state.currentSquad + row + col) % routes.length]
-  const fireMode = type === 'boss' ? 'boss' : state.wave < 3 ? stats.pattern : fireModes[(state.wave + state.currentSquad + row * 2 + col) % fireModes.length]
+  const route = isBossType(type) ? 'boss' : routes[(state.wave + state.currentSquad + row + col) % routes.length]
+  const fireMode = isBossType(type) ? stats.pattern : state.wave < 3 ? stats.pattern : fireModes[(state.wave + state.currentSquad + row * 2 + col) % fireModes.length]
   return {
     x,
     y,
@@ -302,10 +327,15 @@ function spawnSquad() {
   state.shield = state.maxShield
   player.invincible = 1.1
 
-  if (state.wave % 5 === 0) {
-    enemies.push(createEnemy('boss', world.width / 2, 112 + (state.currentSquad - 1) * 18, 0, 0))
+  const bossType = bossTypeForWave(state.wave)
+  if (bossType) {
+    enemies.push(createEnemy(bossType, world.width / 2, 112 + (state.currentSquad - 1) * 18, 0, 0))
     const escortTypes =
-      state.currentSquad === 1
+      bossType === 'finalBoss'
+        ? ['tank', 'sniper', 'bomber', 'guard', 'bomber', 'sniper', 'tank']
+        : bossType === 'majorBoss'
+          ? ['sniper', 'guard', 'bomber', 'tank', 'bomber', 'guard', 'sniper']
+          : state.currentSquad === 1
         ? ['bee', 'guard', 'bee', 'guard']
         : state.wave >= 10
           ? ['sniper', 'guard', 'bomber', 'guard', 'sniper']
@@ -467,19 +497,36 @@ function enemyFire(enemy) {
     for (const angle of [-0.62, -0.28, 0.28, 0.62]) spawnEnemyBullet(enemy.x, enemy.y + 18, Math.sin(angle) * speed, Math.cos(angle) * speed, 11, '#ff8b67')
   } else if (pattern === 'heavy') {
     for (const angle of [-0.22, 0.22]) spawnEnemyBullet(enemy.x, enemy.y + 20, Math.sin(angle) * (speed + 25), Math.cos(angle) * (speed + 25), 15, '#b987ff')
-  } else if (pattern === 'boss') {
-    const ring = 7 + Math.floor(state.wave / 5)
+  } else if (pattern === 'miniBoss') {
+    for (const angle of [-0.52, -0.26, 0, 0.26, 0.52]) spawnEnemyBullet(enemy.x, enemy.y + 34, Math.sin(angle) * (speed + 30), Math.cos(angle) * (speed + 30), 12, '#f4d35e')
+    const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 95)
+    spawnEnemyBullet(enemy.x, enemy.y + 34, aim.vx, aim.vy, 12, '#ff8b67')
+  } else if (pattern === 'majorBoss') {
+    const ring = 10 + Math.floor(state.wave / 10)
     for (let index = 0; index < ring; index += 1) {
-      const angle = -0.82 + (index / Math.max(1, ring - 1)) * 1.64
-      spawnEnemyBullet(enemy.x, enemy.y + 34, Math.sin(angle) * (speed + 20), Math.cos(angle) * (speed + 20), 12, '#b987ff')
+      const angle = -1.05 + (index / Math.max(1, ring - 1)) * 2.1
+      spawnEnemyBullet(enemy.x, enemy.y + 42, Math.sin(angle) * (speed + 35), Math.cos(angle) * (speed + 35), 13, '#b987ff')
     }
-    const aim = aimVector(enemy.x, enemy.y, player.x, player.y, speed + 85)
-    spawnEnemyBullet(enemy.x, enemy.y + 34, aim.vx, aim.vy, 13, '#f4d35e')
+    for (const offset of [-72, 72]) {
+      const aim = aimVector(enemy.x + offset, enemy.y, player.x, player.y, speed + 70)
+      spawnEnemyBullet(enemy.x + offset, enemy.y + 42, aim.vx, aim.vy, 15, '#9ad9ff')
+    }
+  } else if (pattern === 'finalBoss') {
+    const ring = 18
+    const spin = performance.now() / 420
+    for (let index = 0; index < ring; index += 1) {
+      const angle = spin + (index / ring) * Math.PI * 2
+      spawnEnemyBullet(enemy.x, enemy.y + 54, Math.cos(angle) * (speed + 45), Math.sin(angle) * (speed + 45), 12, index % 2 === 0 ? '#f4d35e' : '#e85d75')
+    }
+    for (const offset of [-92, 0, 92]) {
+      const aim = aimVector(enemy.x + offset, enemy.y, player.x, player.y, speed + 125)
+      spawnEnemyBullet(enemy.x + offset, enemy.y + 56, aim.vx, aim.vy, 16, '#ffffff')
+    }
   }
 }
 
 function startDive(enemy) {
-  if (!enemy || enemy.diving || enemy.type === 'boss' || enemy.type === 'tank') return
+  if (!enemy || enemy.diving || isBossType(enemy.type) || enemy.type === 'tank') return
   enemy.diving = true
   enemy.diveT = 0
 }
@@ -532,11 +579,11 @@ function spawnPowerup(type = '') {
 }
 
 function maybeDropTreasure(enemy) {
-  const dropChance = enemy.type === 'boss' ? 1 : clamp(0.18 + state.wave * 0.012 + state.currentSquad * 0.025, 0.18, 0.44)
+  const dropChance = isBossType(enemy.type) ? 1 : clamp(0.18 + state.wave * 0.012 + state.currentSquad * 0.025, 0.18, 0.44)
   if (Math.random() > dropChance) return
   const roll = Math.random()
   const type =
-    enemy.type === 'boss'
+    isBossType(enemy.type)
       ? 'nuke'
       : roll > 0.92
         ? 'nuke'
@@ -626,11 +673,12 @@ function updateEnemies(dt) {
   let edgeHit = false
 
   for (const enemy of enemies) {
-    if (enemy.type === 'boss') {
-      enemy.baseX += (42 + state.wave * 2) * state.enemyDirection * dt
+    if (isBossType(enemy.type)) {
+      const bossSpeed = enemy.type === 'finalBoss' ? 34 : enemy.type === 'majorBoss' ? 46 : 58
+      enemy.baseX += (bossSpeed + state.wave * 1.2) * state.enemyDirection * dt
       enemy.x = enemy.baseX
-      enemy.y = enemy.baseY + Math.sin(performance.now() / 520 + enemy.phase) * 14
-      if (enemy.x < 118 || enemy.x > world.width - 118) edgeHit = true
+      enemy.y = enemy.baseY + Math.sin(performance.now() / (enemy.type === 'finalBoss' ? 430 : 520) + enemy.phase) * (enemy.type === 'miniBoss' ? 18 : 12)
+      if (enemy.x < enemy.width / 2 + 18 || enemy.x > world.width - enemy.width / 2 - 18) edgeHit = true
       continue
     }
 
@@ -769,7 +817,7 @@ function resolveCollisions() {
         state.score += killScore
         state.credits += killCredits
         floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
-        spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 48 : 18)
+        spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 48 : 18)
         maybeDropTreasure(enemy)
         enemies.splice(enemyIndex, 1)
         updateHud()
@@ -815,7 +863,7 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
     state.score += Math.floor(enemy.score * multiplier)
     state.credits += Math.floor(enemy.credit * multiplier)
     maybeDropTreasure(enemy)
-    spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), enemy.type === 'boss' ? 42 : 16)
+    spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 42 : 16)
     enemies.splice(index, 1)
     changed = true
   }
@@ -892,7 +940,7 @@ function useOneShot(type) {
     addEffect('shockwave', world.width / 2, world.height / 2, '#f4d35e', 70)
     for (let index = enemies.length - 1; index >= 0; index -= 1) {
       const enemy = enemies[index]
-      enemy.hp -= enemy.type === 'boss' ? 55 + upgrades.weapon * 2 : 999
+      enemy.hp -= isBossType(enemy.type) ? 55 + upgrades.weapon * 2 : 999
       spawnExplosion(enemy.x, enemy.y, '#f4d35e', 22)
       if (enemy.hp <= 0) {
         state.score += Math.floor(enemy.score * 0.85)
@@ -996,7 +1044,10 @@ function enemyColor(type) {
     sniper: '#ff8b67',
     bomber: '#e85d75',
     tank: '#b987ff',
-    boss: '#e85d75',
+    miniBoss: '#f4d35e',
+    majorBoss: '#b987ff',
+    finalBoss: '#ffffff',
+    boss: '#f4d35e',
   }
   return colors[type] ?? '#7bd6e8'
 }
@@ -1121,15 +1172,39 @@ function drawEnemy(enemy) {
   const color = enemyColor(enemy.type)
   ctx.fillStyle = color
 
-  if (enemy.type === 'boss') {
+  if (isBossType(enemy.type)) {
     ctx.beginPath()
-    roundedRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height, 18)
+    if (enemy.type === 'miniBoss' || enemy.type === 'boss') {
+      roundedRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height, 18)
+    } else if (enemy.type === 'majorBoss') {
+      ctx.moveTo(0, -enemy.height / 2)
+      ctx.lineTo(enemy.width / 2, -6)
+      ctx.lineTo(enemy.width / 3, enemy.height / 2)
+      ctx.lineTo(0, enemy.height / 3)
+      ctx.lineTo(-enemy.width / 3, enemy.height / 2)
+      ctx.lineTo(-enemy.width / 2, -6)
+      ctx.closePath()
+    } else {
+      const spikes = 12
+      for (let index = 0; index < spikes; index += 1) {
+        const angle = (index / spikes) * Math.PI * 2 - Math.PI / 2
+        const radius = index % 2 === 0 ? enemy.width / 2 : enemy.width / 3
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius * 0.58
+        if (index === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+    }
+    ctx.shadowBlur = enemy.type === 'finalBoss' ? 30 : 18
+    ctx.shadowColor = color
     ctx.fill()
+    ctx.shadowBlur = 0
     ctx.fillStyle = '#071019'
     ctx.fillRect(-42, -8, 22, 14)
     ctx.fillRect(20, -8, 22, 14)
-    ctx.fillStyle = '#f4d35e'
-    ctx.fillRect(-48, 22, 96, 6)
+    ctx.fillStyle = enemy.type === 'finalBoss' ? '#e85d75' : '#f4d35e'
+    ctx.fillRect(-enemy.width / 3, enemy.height / 3, (enemy.width / 3) * 2, 6)
   } else {
     ctx.beginPath()
     ctx.ellipse(0, 0, enemy.width / 2, enemy.height / 2, 0, 0, Math.PI * 2)
@@ -1272,16 +1347,16 @@ function drawEffects() {
 }
 
 function drawBossBar() {
-  const boss = enemies.find((enemy) => enemy.type === 'boss')
+  const boss = enemies.find((enemy) => isBossType(enemy.type))
   if (!boss) return
   ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
   ctx.fillRect(220, 22, 520, 10)
-  ctx.fillStyle = '#e85d75'
+  ctx.fillStyle = enemyColor(boss.type)
   ctx.fillRect(220, 22, 520 * clamp(boss.hp / boss.maxHp, 0, 1), 10)
   ctx.fillStyle = '#ffffff'
   ctx.font = '900 13px system-ui'
   ctx.textAlign = 'center'
-  ctx.fillText(`BOSS WAVE ${state.wave}`, world.width / 2, 18)
+  ctx.fillText(`${bossName(boss.type)} / WAVE ${state.wave}`, world.width / 2, 18)
 }
 
 function drawWaveStatus() {

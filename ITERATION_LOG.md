@@ -180,3 +180,18 @@
 - V178: Added flame flicker animation.
 - V179: Added laser pulse animation.
 - V180: Saved progress after kills, upgrades, pickups, wave rewards, and weapon usage.
+- V181: Added boss wave routing for mini, major, and final bosses.
+- V182: Added mini boss every 5 waves.
+- V183: Added major boss every 15 waves.
+- V184: Added final boss on wave 60.
+- V185: Added distinct mini boss stats.
+- V186: Added distinct major boss stats.
+- V187: Added distinct final boss stats.
+- V188: Added mini boss spread-and-aim attack pattern.
+- V189: Added major boss wide-ring and wing-cannon attack pattern.
+- V190: Added final boss rotating-ring and triple-sniper attack pattern.
+- V191: Added distinct boss colors.
+- V192: Added distinct mini boss body silhouette.
+- V193: Added distinct major boss manta silhouette.
+- V194: Added distinct final boss crown-star silhouette.
+- V195: Added debug wave query parameter for boss verification screenshots.
