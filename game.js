@@ -81,6 +81,7 @@ const state = {
   maxCombo: 0,
   stageMod: 'calm',
   meteorTimer: 0,
+  screenFlash: 0,
   inventory: {
     nuke: 0,
     pulse: 0,
@@ -160,7 +161,11 @@ function saveProgress() {
     inventory: { ...state.inventory },
     upgrades: { ...upgrades },
   }
-  localStorage.setItem(progressKey, JSON.stringify(progress))
+  try {
+    localStorage.setItem(progressKey, JSON.stringify(progress))
+  } catch {
+    // Storage can be blocked in hardened/private browser sessions.
+  }
 }
 
 function upgradeCost(id) {
@@ -206,6 +211,7 @@ function resetGame() {
   state.maxCombo = 0
   state.stageMod = stageModForWave(state.wave)
   state.meteorTimer = 1.6
+  state.screenFlash = 0
   state.empCharges = Math.max(2, Number(saved.empCharges) || 0)
   state.inventory.nuke = Math.max(0, Number(saved.inventory?.nuke) || 0)
   state.inventory.pulse = Math.max(1, Number(saved.inventory?.pulse) || 0)
@@ -327,6 +333,7 @@ function createEnemy(type, x, y, row = 0, col = 0) {
     fireMode,
     route,
     phase: rand(0, Math.PI * 2),
+    hitFlash: 0,
     row,
     diving: false,
     diveT: 0,
@@ -431,6 +438,7 @@ function syncArsenal() {
 }
 
 function buyUpgrade(id) {
+  if (!state.running || state.over) return
   const def = upgradeDefs[id]
   if (!def || upgrades[id] >= def.max) return
   const cost = upgradeCost(id)
@@ -587,6 +595,10 @@ function addEffect(type, x, y, color = '#f4d35e', radius = 24) {
   effects.push({ type, x, y, color, radius, life: 0.75, maxLife: 0.75 })
 }
 
+function flashScreen(amount = 0.28) {
+  state.screenFlash = clamp(state.screenFlash + amount, 0, 0.72)
+}
+
 function registerKill() {
   state.combo += 1
   state.comboTimer = 3.2
@@ -718,6 +730,7 @@ function updateEnemies(dt) {
   let edgeHit = false
 
   for (const enemy of enemies) {
+    enemy.hitFlash = Math.max(0, enemy.hitFlash - dt)
     if (isBossType(enemy.type)) {
       const bossSpeed = enemy.type === 'finalBoss' ? 34 : enemy.type === 'majorBoss' ? 46 : 58
       enemy.baseX += (bossSpeed + state.wave * 1.2) * state.enemyDirection * dt
@@ -835,6 +848,7 @@ function updateMeteors(dt) {
   }
 
   const playerBox = { x: player.x - 26, y: player.y - 20, width: 52, height: 42 }
+  let meteorKilledEnemy = false
   for (let index = meteors.length - 1; index >= 0; index -= 1) {
     const meteor = meteors[index]
     meteor.x += meteor.vx * dt
@@ -844,8 +858,14 @@ function updateMeteors(dt) {
     for (const enemy of enemies) {
       const enemyBox = { x: enemy.x - enemy.width / 2, y: enemy.y - enemy.height / 2, width: enemy.width, height: enemy.height }
       if (rectsOverlap(meteorBox, enemyBox)) {
-        enemy.hp -= 3
-        spawnExplosion(meteor.x, meteor.y, '#ff8b67', 8)
+        enemy.hp -= isBossType(enemy.type) ? 8 : 999
+        enemy.hitFlash = 0.18
+        meteorKilledEnemy = true
+        meteor.life = 0
+        state.screenShake = Math.max(state.screenShake, 0.2)
+        flashScreen(0.1)
+        spawnExplosion(meteor.x, meteor.y, '#ff8b67', 18)
+        break
       }
     }
     if (rectsOverlap(meteorBox, playerBox)) {
@@ -855,6 +875,7 @@ function updateMeteors(dt) {
     }
     if (meteor.y > world.height + 60 || meteor.life <= 0) meteors.splice(index, 1)
   }
+  if (meteorKilledEnemy) cleanupDefeatedEnemies(0.78)
 }
 
 function updateParticles(dt) {
@@ -879,6 +900,7 @@ function updateFloatTexts(dt) {
 }
 
 function updateEffects(dt) {
+  state.screenFlash = Math.max(0, state.screenFlash - dt * 1.8)
   for (let index = effects.length - 1; index >= 0; index -= 1) {
     const effect = effects[index]
     effect.life -= dt
@@ -897,6 +919,7 @@ function resolveCollisions() {
 
       bullets.splice(bulletIndex, 1)
       enemy.hp -= bullet.damage
+      enemy.hitFlash = 0.12
       spawnExplosion(bullet.x + bullet.width / 2, bullet.y, bullet.color, 7)
 
       if (enemy.hp <= 0) {
@@ -988,6 +1011,8 @@ function damagePlayer() {
   if (state.shield > 0) {
     state.shield -= 1
     player.invincible = 0.75
+    state.screenShake = Math.max(state.screenShake, 0.25)
+    flashScreen(0.12)
     spawnExplosion(player.x, player.y, '#35c4df', 18)
     updateHud()
     return
@@ -995,6 +1020,8 @@ function damagePlayer() {
 
   state.lives -= 1
   player.invincible = 1.45
+  state.screenShake = Math.max(state.screenShake, 0.48)
+  flashScreen(0.24)
   spawnExplosion(player.x, player.y, '#e85d75', 30)
   updateHud()
   if (state.lives <= 0) endGame()
@@ -1007,6 +1034,7 @@ function useSpecial() {
   for (let index = enemies.length - 1; index >= 0; index -= 1) {
     const enemy = enemies[index]
     enemy.hp -= 3 + upgrades.weapon
+    enemy.hitFlash = 0.18
     spawnExplosion(enemy.x, enemy.y, '#b987ff', 8)
     if (enemy.hp <= 0) {
       state.score += Math.floor(enemy.score * 0.7)
@@ -1016,6 +1044,7 @@ function useSpecial() {
   }
   state.specialCooldown = clamp(14 - upgrades.shield - upgrades.drone, 7, 14)
   addEffect('shockwave', player.x, player.y - 40, '#b987ff', 34)
+  flashScreen(0.16)
   spawnExplosion(player.x, player.y - 40, '#b987ff', 54)
   updateHud()
   saveProgress()
@@ -1031,6 +1060,7 @@ function useOneShot(type) {
     for (let index = enemies.length - 1; index >= 0; index -= 1) {
       const enemy = enemies[index]
       enemy.hp -= isBossType(enemy.type) ? 55 + upgrades.weapon * 2 : 999
+      enemy.hitFlash = 0.2
       spawnExplosion(enemy.x, enemy.y, '#f4d35e', 22)
       if (enemy.hp <= 0) {
         state.score += Math.floor(enemy.score * 0.85)
@@ -1040,6 +1070,7 @@ function useOneShot(type) {
       }
     }
     state.screenShake = 0.55
+    flashScreen(0.3)
     floatText(world.width / 2, world.height / 2, '核彈清場', '#f4d35e')
   }
 
@@ -1048,11 +1079,13 @@ function useOneShot(type) {
     addEffect('shockwave', player.x, player.y - 40, '#b987ff', 42)
     for (const enemy of enemies) {
       enemy.hp -= 9 + Math.floor(upgrades.weapon / 4)
+      enemy.hitFlash = 0.16
       spawnExplosion(enemy.x, enemy.y, '#b987ff', 10)
     }
     cleanupDefeatedEnemies(0.8)
     state.shield = clamp(state.shield + 1, 0, state.maxShield)
     state.screenShake = 0.28
+    flashScreen(0.16)
     floatText(player.x, player.y - 70, '脈衝爆發', '#b987ff')
   }
 
@@ -1176,10 +1209,15 @@ function treasureLabel(type) {
 function drawBackground() {
   ctx.fillStyle = '#050b12'
   ctx.fillRect(0, 0, world.width, world.height)
+  const time = performance.now() / 1000
   for (const star of stars) {
     ctx.globalAlpha = star.alpha
     ctx.fillStyle = '#dff8ff'
     ctx.fillRect(star.x, star.y, star.size, star.size)
+    if (star.speed > 84) {
+      ctx.globalAlpha = star.alpha * 0.28
+      ctx.fillRect(star.x, star.y - 8, star.size, 10)
+    }
   }
   ctx.globalAlpha = 1
   const gradient = ctx.createLinearGradient(0, 0, 0, world.height)
@@ -1196,6 +1234,29 @@ function drawBackground() {
   ctx.fillStyle = nebula
   ctx.fillRect(0, 0, world.width, world.height)
 
+  const modColor = stageMods[state.stageMod]?.color ?? '#7bd6e8'
+  const eventGlow = ctx.createRadialGradient(world.width * 0.18, world.height * 0.82, 10, world.width * 0.18, world.height * 0.82, 420)
+  eventGlow.addColorStop(0, `${modColor}2c`)
+  eventGlow.addColorStop(1, `${modColor}00`)
+  ctx.fillStyle = eventGlow
+  ctx.fillRect(0, 0, world.width, world.height)
+
+  if (state.stageMod === 'ion') {
+    ctx.strokeStyle = 'rgba(185, 135, 255, 0.16)'
+    ctx.lineWidth = 2
+    for (let x = -80; x < world.width + 80; x += 120) {
+      ctx.beginPath()
+      ctx.moveTo(x + Math.sin(time * 2 + x) * 24, 0)
+      ctx.bezierCurveTo(x + 72, 170, x - 42, 390, x + 90, world.height)
+      ctx.stroke()
+    }
+  }
+
+  if (state.stageMod === 'solar') {
+    ctx.fillStyle = 'rgba(244, 211, 94, 0.08)'
+    for (let y = 28; y < world.height; y += 76) ctx.fillRect((time * 90 + y) % world.width - 120, y, 240, 2)
+  }
+
   ctx.strokeStyle = 'rgba(123, 214, 232, 0.08)'
   ctx.lineWidth = 1
   for (let y = 70; y < world.height; y += 70) {
@@ -1209,7 +1270,21 @@ function drawBackground() {
 function drawPlayer() {
   ctx.save()
   ctx.translate(player.x, player.y)
+  const tilt = ((input.right ? 1 : 0) - (input.left ? 1 : 0)) * 0.12
+  ctx.rotate(tilt)
   if (player.invincible > 0 && Math.floor(player.invincible * 12) % 2 === 0) ctx.globalAlpha = 0.42
+
+  const thrust = 20 + Math.sin(performance.now() / 42) * 7
+  const thrustGradient = ctx.createLinearGradient(0, 20, 0, 56)
+  thrustGradient.addColorStop(0, 'rgba(244, 211, 94, 0.92)')
+  thrustGradient.addColorStop(1, 'rgba(232, 93, 117, 0)')
+  ctx.fillStyle = thrustGradient
+  ctx.beginPath()
+  ctx.moveTo(-10, 22)
+  ctx.lineTo(0, 28 + thrust)
+  ctx.lineTo(10, 22)
+  ctx.closePath()
+  ctx.fill()
 
   ctx.fillStyle = '#35c4df'
   ctx.beginPath()
@@ -1224,7 +1299,8 @@ function drawPlayer() {
 
   ctx.fillStyle = '#f4d35e'
   ctx.beginPath()
-  ctx.ellipse(0, -7, 10 + upgrades.hull, 14, 0, 0, Math.PI * 2)
+  const cockpitWidth = 10 + Math.min(upgrades.hull * 0.22, 9)
+  ctx.ellipse(0, -7, cockpitWidth, 14, 0, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.fillStyle = '#e85d75'
@@ -1244,17 +1320,21 @@ function drawPlayer() {
 
 function drawDrones() {
   if (upgrades.drone <= 0) return
+  const time = performance.now() / 420
   const droneCount = clamp(1 + Math.floor(upgrades.drone / 8), 1, 8)
   for (let index = 0; index < droneCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1
     const lane = Math.ceil((index + 1) / 2)
-    const x = side * 38 * lane
-    const y = 8 + lane * 8
+    const x = side * 38 * lane + Math.sin(time + index) * 5
+    const y = 8 + lane * 8 + Math.cos(time + index) * 4
+    ctx.shadowBlur = 12
+    ctx.shadowColor = '#7fe58b'
     ctx.fillStyle = '#7fe58b'
     ctx.beginPath()
     ctx.ellipse(x, y, 8, 6, 0, 0, Math.PI * 2)
     ctx.fill()
   }
+  ctx.shadowBlur = 0
 }
 
 function drawEnemy(enemy) {
@@ -1262,6 +1342,8 @@ function drawEnemy(enemy) {
   ctx.translate(enemy.x, enemy.y)
   const color = enemyColor(enemy.type)
   ctx.fillStyle = color
+  ctx.shadowBlur = enemy.hitFlash > 0 ? 24 : 0
+  ctx.shadowColor = '#ffffff'
 
   if (isBossType(enemy.type)) {
     ctx.beginPath()
@@ -1313,6 +1395,21 @@ function drawEnemy(enemy) {
     ctx.stroke()
   }
 
+  if (enemy.hitFlash > 0) {
+    ctx.globalAlpha = clamp(enemy.hitFlash / 0.18, 0, 1) * 0.72
+    ctx.fillStyle = '#ffffff'
+    if (isBossType(enemy.type)) {
+      ctx.beginPath()
+      roundedRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height, 18)
+      ctx.fill()
+    } else {
+      ctx.beginPath()
+      ctx.ellipse(0, 0, enemy.width / 2, enemy.height / 2, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  }
+
   if (enemy.maxHp > 2) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
     ctx.fillRect(-enemy.width / 2, enemy.height / 2 + 7, enemy.width, 5)
@@ -1328,6 +1425,9 @@ function drawBullets() {
   for (const bullet of bullets) {
     ctx.fillStyle = bullet.color
     ctx.shadowColor = bullet.color
+    ctx.globalAlpha = 0.36
+    ctx.fillRect(bullet.x + bullet.width / 2 - 1, bullet.y + bullet.height, 2, 28)
+    ctx.globalAlpha = 1
     ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
   }
   for (const bullet of enemyBullets) {
@@ -1374,6 +1474,9 @@ function drawPowerups() {
   for (const powerup of powerups) {
     ctx.save()
     ctx.translate(powerup.x + powerup.width / 2, powerup.y + powerup.height / 2)
+    ctx.rotate(Math.sin(performance.now() / 320 + powerup.y) * 0.12)
+    ctx.shadowBlur = 16
+    ctx.shadowColor = powerupColor(powerup.type)
     ctx.fillStyle = powerupColor(powerup.type)
     ctx.beginPath()
     roundedRect(-16, -16, 32, 32, 8)
@@ -1475,10 +1578,13 @@ function drawBossBar() {
 function drawWaveStatus() {
   if (!state.running || state.over) return
   const mod = stageMods[state.stageMod] ?? stageMods.calm
+  const statusText = `Wave ${state.wave}  ${mod.label}  敵群 ${state.currentSquad}/${state.squadsTotal}  剩 ${enemies.length}`
+  ctx.font = '900 13px system-ui'
+  const panelWidth = clamp(ctx.measureText(statusText).width + 30, 326, 650)
   ctx.save()
   ctx.fillStyle = 'rgba(5, 11, 18, 0.62)'
   ctx.beginPath()
-  roundedRect(20, 18, 326, 34, 8)
+  roundedRect(20, 18, panelWidth, 34, 8)
   ctx.fill()
   ctx.fillStyle = mod.color
   ctx.font = '900 13px system-ui'
@@ -1498,6 +1604,15 @@ function drawPaused() {
   ctx.fillText('暫停', world.width / 2, world.height / 2)
 }
 
+function drawScreenFlash() {
+  if (state.screenFlash <= 0) return
+  ctx.save()
+  ctx.globalAlpha = clamp(state.screenFlash, 0, 0.62)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, world.width, world.height)
+  ctx.restore()
+}
+
 function draw() {
   ctx.save()
   if (state.screenShake > 0) ctx.translate(rand(-7, 7) * state.screenShake, rand(-7, 7) * state.screenShake)
@@ -1515,6 +1630,7 @@ function draw() {
   drawBossBar()
   drawPaused()
   ctx.restore()
+  drawScreenFlash()
 }
 
 function frame(time) {

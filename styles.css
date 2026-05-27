@@ -23,6 +23,17 @@ body {
 button {
   border: 0;
   font: inherit;
+  transition:
+    transform 120ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+button:focus-visible {
+  outline: 2px solid #f4d35e;
+  outline-offset: 2px;
 }
 
 .game-shell {
@@ -85,6 +96,18 @@ button {
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.38);
 }
 
+.stage-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 14%),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5px);
+  mix-blend-mode: screen;
+  opacity: 0.16;
+}
+
 canvas {
   width: 100%;
   height: min(68vh, 680px);
@@ -117,6 +140,7 @@ canvas {
   border-radius: 8px;
   background: rgba(8, 21, 31, 0.94);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  animation: panel-in 260ms ease both;
 }
 
 .overlay p {
@@ -159,6 +183,7 @@ canvas {
   background: #35c4df;
   color: #041016;
   font-weight: 900;
+  box-shadow: 0 0 24px rgba(53, 196, 223, 0.28);
 }
 
 .controls {
@@ -176,10 +201,18 @@ canvas {
   touch-action: manipulation;
 }
 
+.controls button:not(:disabled):hover,
+.overlay button:not(:disabled):hover,
+.upgrade-panel button:not(:disabled):hover,
+.arsenal-panel button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
 .controls button:active,
 .controls button.pressed {
   background: #35c4df;
   color: #041016;
+  transform: translateY(1px) scale(0.99);
 }
 
 .arsenal-panel {
@@ -235,6 +268,19 @@ canvas {
   opacity: 0.55;
 }
 
+.upgrade-panel article::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: translateX(-120%);
+}
+
+.upgrade-panel article:hover::after {
+  animation: card-sheen 900ms ease;
+}
+
 .upgrade-panel strong {
   position: relative;
   color: #ffffff;
@@ -281,6 +327,24 @@ canvas {
   border: 1px solid rgba(173, 208, 214, 0.18);
   border-radius: 999px;
   background: rgba(10, 22, 31, 0.64);
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-sheen {
+  to {
+    transform: translateX(120%);
+  }
 }
 
 @media (max-width: 920px) {

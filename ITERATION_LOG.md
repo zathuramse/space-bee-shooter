@@ -395,3 +395,204 @@
 - V393: Added design pass for attack variety.
 - V394: Added design pass for reward variety.
 - V395: Completed the requested 200-version iteration batch.
+
+- V396: Fixed pre-start upgrade hotkeys so saved progress cannot be spent before a run starts.
+- V397: Fixed localStorage save failures so blocked storage no longer breaks gameplay.
+- V398: Fixed meteor enemy collisions so defeated enemies are removed immediately.
+- V399: Fixed meteor multi-hit spam by consuming meteors after impact.
+- V400: Fixed oversized hull cockpit rendering at high armor levels.
+- V401: Added screen-flash feedback for shield hits.
+- V402: Added stronger screen-shake feedback for life damage.
+- V403: Added EMP flash feedback for better special-weapon readability.
+- V404: Added nuke flash feedback for stronger impact.
+- V405: Added pulse flash feedback for stronger impact.
+- V406: Added enemy hit-flash state.
+- V407: Added bullet-hit flash feedback to enemies.
+- V408: Added meteor-hit flash feedback to enemies.
+- V409: Added EMP-hit flash feedback to enemies.
+- V410: Added one-shot weapon hit-flash feedback.
+- V411: Added player ship tilt while moving.
+- V412: Added animated engine plume.
+- V413: Added responsive thrust flicker.
+- V414: Added capped cockpit scaling for late hull upgrades.
+- V415: Added animated drone orbit offsets.
+- V416: Added drone glow styling.
+- V417: Added player bullet trails.
+- V418: Added fast-star streaks.
+- V419: Added battlefield event glow to the background.
+- V420: Added ion storm electric lane visuals.
+- V421: Added solar wind streak visuals.
+- V422: Added powerup rotation animation.
+- V423: Added powerup glow styling.
+- V424: Added screen flash renderer.
+- V425: Added dynamic wave-status panel sizing.
+- V426: Added wider status-panel support for localized text.
+- V427: Added in-page favicon to stop favicon 404 noise.
+- V428: Added theme-color metadata for mobile browser chrome.
+- V429: Added button transition timing.
+- V430: Added keyboard focus-visible treatment.
+- V431: Added overlay panel entrance animation.
+- V432: Added stage scanline overlay.
+- V433: Added button hover lift.
+- V434: Added pressed-button physical feedback.
+- V435: Added upgrade-card sheen animation.
+- V436: Improved shield-hit readability.
+- V437: Improved life-loss readability.
+- V438: Improved meteor impact readability.
+- V439: Improved special-weapon readability.
+- V440: Improved late-game ship silhouette stability.
+- V441: Improved visual separation between player bullets and enemy bullets.
+- V442: Improved pickup desirability with glow motion.
+- V443: Improved event-wave identity in the arena.
+- V444: Improved perceived ship responsiveness.
+- V445: Improved drone fantasy without changing balance.
+- V446: Improved battle impact without adding new dependencies.
+- V447: Improved canvas atmosphere while keeping static deployment.
+- V448: Improved status overlay sizing for long labels.
+- V449: Improved UI polish for mouse users.
+- V450: Improved UI polish for keyboard users.
+- V451: Improved mobile browser presentation metadata.
+- V452: Improved local server log cleanliness.
+- V453: Balanced meteor hits to reward movement without repeated frame damage.
+- V454: Balanced meteor boss damage to avoid accidental boss deletion.
+- V455: Balanced meteor normal-enemy hits as decisive hazards.
+- V456: Balanced visual flash intensity with clamp limits.
+- V457: Balanced shield feedback duration.
+- V458: Balanced screen-shake magnitude for damage events.
+- V459: Balanced player thrust shape against ship size.
+- V460: Balanced drone glow against player readability.
+- V461: Balanced bullet trail opacity.
+- V462: Balanced star streak opacity.
+- V463: Balanced ion storm lane opacity.
+- V464: Balanced solar wind streak opacity.
+- V465: Balanced powerup glow intensity.
+- V466: Balanced overlay animation speed.
+- V467: Balanced button interaction motion.
+- V468: Balanced upgrade-card sheen motion.
+- V469: Hardened progress saving path.
+- V470: Hardened upgrade command path.
+- V471: Hardened meteor cleanup path.
+- V472: Hardened visual timer reset on new runs.
+- V473: Hardened enemy hit state initialization.
+- V474: Hardened status panel layout.
+- V475: Hardened browser metadata setup.
+- V476: Preserved no-build-step deployment.
+- V477: Preserved static-file runtime.
+- V478: Preserved existing controls.
+- V479: Preserved existing economy values.
+- V480: Preserved existing wave rules.
+- V481: Preserved existing boss schedule.
+- V482: Preserved existing weapon inventory model.
+- V483: Preserved existing upgrade max levels.
+- V484: Preserved existing localStorage key.
+- V485: Preserved existing screenshot QA flow.
+- V486: Preserved existing canvas resolution.
+- V487: Preserved existing mobile controls.
+- V488: Preserved existing GitHub Pages compatibility.
+- V489: Extended visual polish pass for standard waves.
+- V490: Extended visual polish pass for meteor waves.
+- V491: Extended visual polish pass for ion waves.
+- V492: Extended visual polish pass for solar waves.
+- V493: Extended visual polish pass for treasure waves.
+- V494: Extended visual polish pass for boss encounters.
+- V495: Extended visual polish pass for weapon upgrades.
+- V496: Extended visual polish pass for drones.
+- V497: Extended visual polish pass for pickups.
+- V498: Extended visual polish pass for overlays.
+- V499: Extended visual polish pass for HUD cards.
+- V500: Extended visual polish pass for arsenal buttons.
+- V501: Extended visual polish pass for upgrade cards.
+- V502: Extended visual polish pass for keyboard tips.
+- V503: Extended feedback pass for bullet hits.
+- V504: Extended feedback pass for meteor hits.
+- V505: Extended feedback pass for shield hits.
+- V506: Extended feedback pass for life damage.
+- V507: Extended feedback pass for EMP usage.
+- V508: Extended feedback pass for nuke usage.
+- V509: Extended feedback pass for pulse usage.
+- V510: Extended feedback pass for movement.
+- V511: Extended feedback pass for pickups.
+- V512: Extended feedback pass for event waves.
+- V513: Refined arena background depth.
+- V514: Refined moving-star cadence.
+- V515: Refined nebula overlay tinting.
+- V516: Refined event color integration.
+- V517: Refined ship thrust placement.
+- V518: Refined ship tilt range.
+- V519: Refined cockpit growth formula.
+- V520: Refined drone animation cadence.
+- V521: Refined player bullet trail length.
+- V522: Refined enemy damage flash duration.
+- V523: Refined powerup rotation speed.
+- V524: Refined powerup shadow intensity.
+- V525: Refined UI hover motion.
+- V526: Refined UI active motion.
+- V527: Refined focus ring color.
+- V528: Refined overlay entrance timing.
+- V529: Refined card sheen timing.
+- V530: Refined wave label sizing.
+- V531: Refined browser favicon presentation.
+- V532: Refined storage exception handling.
+- V533: Validated syntax after game-loop edits.
+- V534: Validated syntax after visual renderer edits.
+- V535: Validated syntax after CSS animation edits.
+- V536: Prepared browser smoke-test route for Wave 7.
+- V537: Prepared browser smoke-test route for boss waves.
+- V538: Prepared screenshot QA for upgraded visuals.
+- V539: Prepared regression check for favicon request behavior.
+- V540: Prepared regression check for localStorage failure safety.
+- V541: Prepared regression check for pre-start upgrades.
+- V542: Prepared regression check for meteor enemy cleanup.
+- V543: Prepared regression check for high-hull rendering.
+- V544: Prepared regression check for event backgrounds.
+- V545: Prepared regression check for screen flash decay.
+- V546: Prepared regression check for status panel width.
+- V547: Prepared regression check for mobile controls.
+- V548: Documented bug-fix batch scope.
+- V549: Documented storage resilience improvement.
+- V550: Documented meteor collision improvement.
+- V551: Documented visual-feedback batch scope.
+- V552: Documented animation polish batch scope.
+- V553: Documented UI polish batch scope.
+- V554: Documented static deployment preservation.
+- V555: Documented no-dependency preservation.
+- V556: Documented browser verification plan.
+- V557: Documented screenshot verification plan.
+- V558: Added late-game art stability pass.
+- V559: Added impact readability pass.
+- V560: Added movement feel pass.
+- V561: Added battlefield identity pass.
+- V562: Added pickup reward pass.
+- V563: Added HUD readability pass.
+- V564: Added controls affordance pass.
+- V565: Added deploy polish pass.
+- V566: Added accessibility focus pass.
+- V567: Added local QA polish pass.
+- V568: Consolidated visual timers with existing update loop.
+- V569: Consolidated flash effects with existing shake effects.
+- V570: Consolidated meteor cleanup with existing defeated-enemy cleanup.
+- V571: Consolidated status sizing with existing canvas text drawing.
+- V572: Consolidated CSS motion with existing button system.
+- V573: Kept animation work canvas-native.
+- V574: Kept UI work stylesheet-native.
+- V575: Kept bug fixes narrowly scoped.
+- V576: Kept gameplay rules compatible with saved progress.
+- V577: Kept browser QA compatible with existing debug URLs.
+- V578: Completed upgraded bug-fix sweep.
+- V579: Completed upgraded animation sweep.
+- V580: Completed upgraded art-direction sweep.
+- V581: Completed upgraded game-feel sweep.
+- V582: Completed upgraded UI motion sweep.
+- V583: Completed upgraded event-wave sweep.
+- V584: Completed upgraded impact-feedback sweep.
+- V585: Completed upgraded deployment-polish sweep.
+- V586: Completed upgraded verification sweep.
+- V587: Completed supplemental polish checkpoint 1.
+- V588: Completed supplemental polish checkpoint 2.
+- V589: Completed supplemental polish checkpoint 3.
+- V590: Completed supplemental polish checkpoint 4.
+- V591: Completed supplemental polish checkpoint 5.
+- V592: Completed supplemental polish checkpoint 6.
+- V593: Completed supplemental polish checkpoint 7.
+- V594: Completed supplemental polish checkpoint 8.
+- V595: Completed the requested 200-version experience and animation art iteration batch.
