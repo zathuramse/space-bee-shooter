@@ -1,4 +1,4 @@
-.chrome-headless/
+.chrome-headless*/
 .chrome-profile/
 *.log
 screenshot-*.png
