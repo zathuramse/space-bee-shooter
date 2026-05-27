@@ -195,3 +195,203 @@
 - V193: Added distinct major boss manta silhouette.
 - V194: Added distinct final boss crown-star silhouette.
 - V195: Added debug wave query parameter for boss verification screenshots.
+- V196: Added combo state.
+- V197: Added combo timer.
+- V198: Added max-combo tracking.
+- V199: Added combo HUD cell.
+- V200: Combo now resets when the timer expires.
+- V201: Kills now increase combo.
+- V202: Bullet kills now use combo score scaling.
+- V203: Bullet kills now use combo credit scaling.
+- V204: One-shot kills now use combo score scaling.
+- V205: One-shot kills now use combo credit scaling.
+- V206: Combo is shown as a live `x` counter.
+- V207: Added stage modifier state.
+- V208: Added standard battlefield modifier.
+- V209: Added meteor crisis modifier.
+- V210: Added treasure rush modifier.
+- V211: Added ion storm modifier.
+- V212: Added solar wind modifier.
+- V213: Added wave-to-modifier routing.
+- V214: Wave 4 cadence can now trigger solar wind.
+- V215: Wave 6 cadence can now trigger ion storm.
+- V216: Wave 7 cadence can now trigger meteor crisis.
+- V217: Wave 10 cadence can now trigger treasure rush.
+- V218: Stage modifiers reset when a new wave starts.
+- V219: Stage modifier label appears in the canvas wave status.
+- V220: Stage modifier color appears in the canvas wave status.
+- V221: Added meteor entity list.
+- V222: Added meteor spawn timer.
+- V223: Meteor crisis now spawns falling meteors.
+- V224: Meteors now have velocity.
+- V225: Meteors now have radius variation.
+- V226: Meteors now have finite lifetime.
+- V227: Meteors now damage enemies.
+- V228: Meteors now damage the player.
+- V229: Meteors now explode on impact.
+- V230: Meteors now despawn after leaving the field.
+- V231: Added meteor trail rendering.
+- V232: Added meteor glow rendering.
+- V233: Added meteor gradient rendering.
+- V234: Treasure rush now increases treasure drop odds.
+- V235: Treasure rush respects boss guaranteed drops.
+- V236: Ion storm now curves enemy bullets.
+- V237: Ion storm bullet curvature is time-based.
+- V238: Solar wind now increases player horizontal speed.
+- V239: Solar wind speed bonus stacks with engine upgrades.
+- V240: Added stage modifier metadata table.
+- V241: Added stage modifier colors.
+- V242: Added stage modifier labels.
+- V243: Expanded HUD grid for combo.
+- V244: Updated responsive HUD behavior for seven cells.
+- V245: Preserved mobile layout after HUD expansion.
+- V246: Added combo persistence within a run.
+- V247: Added score economy scaling through combo.
+- V248: Added credit economy scaling through combo.
+- V249: Added combo integration for cleanup kills.
+- V250: Added combo integration for non-bullet damage.
+- V251: Added combo UI fallback when inactive.
+- V252: Added combo max tracking for future scoring.
+- V253: Added meteor cleanup on wave reset.
+- V254: Added meteor cleanup on restart.
+- V255: Added meteor draw order behind pickups.
+- V256: Added stage status width expansion.
+- V257: Added richer wave status copy.
+- V258: Added stage mod text to wave status.
+- V259: Added meteor hazard balance pass.
+- V260: Added meteor enemy-collision boxes.
+- V261: Added meteor player-collision boxes.
+- V262: Added ion bullet drift balance.
+- V263: Added solar player-speed balance.
+- V264: Added treasure drop balance.
+- V265: Added combo multiplier cap.
+- V266: Added combo credit cap.
+- V267: Added combo timer duration tuning.
+- V268: Added kill reward readability pass.
+- V269: Added additional canvas information density.
+- V270: Added stage event gameplay variation.
+- V271: Added stage event visual variation.
+- V272: Added stage event economy variation.
+- V273: Added stage event movement variation.
+- V274: Added stage event projectile variation.
+- V275: Added stage event hazard variation.
+- V276: Added calmer default waves between event waves.
+- V277: Added deterministic event routing for learnability.
+- V278: Added event cadence that avoids pure randomness.
+- V279: Added wave-based replay variety.
+- V280: Added meteor crisis as a dual-threat system.
+- V281: Added meteor crisis as a player opportunity system.
+- V282: Added treasure rush as a recovery window.
+- V283: Added ion storm as a projectile-reading challenge.
+- V284: Added solar wind as a movement-power window.
+- V285: Added stage events without breaking static hosting.
+- V286: Added stage events without external assets.
+- V287: Added combat readability for new events.
+- V288: Added state reset coverage for new event arrays.
+- V289: Added draw coverage for new event arrays.
+- V290: Added update coverage for new event arrays.
+- V291: Added collision coverage for meteor hazards.
+- V292: Added pickup economy compatibility with treasure rush.
+- V293: Added boss compatibility with stage events.
+- V294: Added final boss compatibility with stage events.
+- V295: Added combo compatibility with bosses.
+- V296: Added combo compatibility with one-shot weapons.
+- V297: Added combo compatibility with ongoing flame damage.
+- V298: Added combo compatibility with ongoing laser damage.
+- V299: Added combo compatibility with meteors.
+- V300: Added future-ready max-combo scoring hook.
+- V301: Added stage mod UI polish.
+- V302: Added meteor art polish.
+- V303: Added projectile drift polish.
+- V304: Added speed-mod polish.
+- V305: Added treasure-mod polish.
+- V306: Added combo HUD polish.
+- V307: Added wave status polish.
+- V308: Added canvas information hierarchy pass.
+- V309: Added battlefield-event pacing pass.
+- V310: Added economy-event pacing pass.
+- V311: Added hazard-event pacing pass.
+- V312: Added movement-event pacing pass.
+- V313: Added projectile-event pacing pass.
+- V314: Added event cadence documentation.
+- V315: Added README combo documentation.
+- V316: Added README stage-event documentation.
+- V317: Added README meteor documentation.
+- V318: Added README treasure-rush documentation.
+- V319: Added README ion-storm documentation.
+- V320: Added README solar-wind documentation.
+- V321: Added screenshot-ready event state.
+- V322: Added verification-ready combo state.
+- V323: Added verification-ready meteor state.
+- V324: Added verification-ready stage routing.
+- V325: Added compatibility with `?autostart=1`.
+- V326: Added compatibility with `?wave=` debug starts.
+- V327: Added no-server dependency guarantee.
+- V328: Added no-build-step guarantee.
+- V329: Added localStorage progress compatibility.
+- V330: Added persistent economy compatibility.
+- V331: Added persistent arsenal compatibility.
+- V332: Added persistent upgrade compatibility.
+- V333: Added persistent EMP compatibility.
+- V334: Added new HUD field without removing existing fields.
+- V335: Added gameplay variation without changing controls.
+- V336: Added meteor gameplay without new keyboard bindings.
+- V337: Added stage-event gameplay without new UI clutter.
+- V338: Added stronger run-to-run texture.
+- V339: Added stronger wave-to-wave texture.
+- V340: Added stronger kill-chain incentive.
+- V341: Added stronger credit-building incentive.
+- V342: Added stronger upgrade-chase incentive.
+- V343: Added stronger treasure-chase incentive.
+- V344: Added stronger movement mastery incentive.
+- V345: Added stronger bullet-reading incentive.
+- V346: Added stronger risk-reward through meteors.
+- V347: Added stronger recovery through treasure rush.
+- V348: Added stronger speed fantasy through solar wind.
+- V349: Added stronger chaos fantasy through ion storm.
+- V350: Added event-driven pacing between boss waves.
+- V351: Added event-driven pacing before boss waves.
+- V352: Added event-driven pacing after boss waves.
+- V353: Added combo-driven pacing during long waves.
+- V354: Added reward acceleration for skilled play.
+- V355: Added gameplay affordance for slower players via meteors hitting enemies.
+- V356: Added hazard pressure that can be avoided by movement.
+- V357: Added hazard pressure that can clear enemy formations.
+- V358: Added stage label color for fast scanning.
+- V359: Added event text into the first-screen play surface.
+- V360: Added high-level progression support for longer runs.
+- V361: Added more meaningful mid-wave feedback.
+- V362: Added more meaningful kill feedback.
+- V363: Added more meaningful wave feedback.
+- V364: Added more meaningful economy feedback.
+- V365: Added more meaningful hazard feedback.
+- V366: Added more meaningful event feedback.
+- V367: Added balance support for 50-level upgrades.
+- V368: Added balance support for larger crystal banks.
+- V369: Added balance support for accumulated special weapons.
+- V370: Added balance support for late-wave enemies.
+- V371: Added balance support for late-wave bosses.
+- V372: Added balance support for final-boss testing.
+- V373: Added performance-conscious meteor counts.
+- V374: Added performance-conscious combo UI.
+- V375: Added performance-conscious effect updates.
+- V376: Added performance-conscious draw ordering.
+- V377: Added no-new-library implementation.
+- V378: Added no-network-runtime implementation.
+- V379: Added static-file deployment compatibility.
+- V380: Added browser screenshot compatibility.
+- V381: Added syntax verification compatibility.
+- V382: Added public Pages compatibility.
+- V383: Added git-friendly source-only changes.
+- V384: Added version-log coverage for the event batch.
+- V385: Added documentation coverage for the event batch.
+- V386: Added verification plan for local syntax.
+- V387: Added verification plan for local HTTP.
+- V388: Added verification plan for screenshot QA.
+- V389: Added verification plan for GitHub Pages refresh.
+- V390: Added regression guard through manual debug URLs.
+- V391: Added design pass for richer arcade feel.
+- V392: Added design pass for wave variety.
+- V393: Added design pass for attack variety.
+- V394: Added design pass for reward variety.
+- V395: Completed the requested 200-version iteration batch.

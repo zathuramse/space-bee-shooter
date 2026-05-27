@@ -7,6 +7,7 @@ const waveEl = document.querySelector('#wave')
 const livesEl = document.querySelector('#lives')
 const shieldEl = document.querySelector('#shield')
 const weaponEl = document.querySelector('#weapon')
+const comboEl = document.querySelector('#combo')
 const startOverlay = document.querySelector('#startOverlay')
 const waveOverlay = document.querySelector('#waveOverlay')
 const gameOverOverlay = document.querySelector('#gameOverOverlay')
@@ -75,6 +76,11 @@ const state = {
   freezeTimer: 0,
   screenShake: 0,
   empCharges: 0,
+  combo: 0,
+  comboTimer: 0,
+  maxCombo: 0,
+  stageMod: 'calm',
+  meteorTimer: 0,
   inventory: {
     nuke: 0,
     pulse: 0,
@@ -108,9 +114,17 @@ const enemies = []
 const particles = []
 const floatTexts = []
 const effects = []
+const meteors = []
 const powerups = []
 const stars = []
 const progressKey = 'space-bee-shooter-progress-v1'
+const stageMods = {
+  calm: { label: '標準戰場', color: '#7bd6e8' },
+  meteor: { label: '隕石危機', color: '#ff8b67' },
+  treasure: { label: '寶箱潮', color: '#f4d35e' },
+  ion: { label: '離子風暴', color: '#b987ff' },
+  solar: { label: '太陽風', color: '#e85d75' },
+}
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
@@ -187,6 +201,11 @@ function resetGame() {
   state.laserTimer = 0
   state.freezeTimer = 0
   state.screenShake = 0
+  state.combo = 0
+  state.comboTimer = 0
+  state.maxCombo = 0
+  state.stageMod = stageModForWave(state.wave)
+  state.meteorTimer = 1.6
   state.empCharges = Math.max(2, Number(saved.empCharges) || 0)
   state.inventory.nuke = Math.max(0, Number(saved.inventory?.nuke) || 0)
   state.inventory.pulse = Math.max(1, Number(saved.inventory?.pulse) || 0)
@@ -214,6 +233,7 @@ function resetGame() {
   particles.length = 0
   floatTexts.length = 0
   effects.length = 0
+  meteors.length = 0
   powerups.length = 0
   pauseButton.textContent = '暫停'
   specialButton.textContent = 'EMP'
@@ -258,6 +278,14 @@ function bossName(type) {
     boss: 'BOSS',
   }
   return names[type] ?? 'BOSS'
+}
+
+function stageModForWave(wave) {
+  if (wave % 10 === 0) return 'treasure'
+  if (wave % 7 === 0) return 'meteor'
+  if (wave % 6 === 0) return 'ion'
+  if (wave % 4 === 0) return 'solar'
+  return 'calm'
 }
 
 function enemyStats(type) {
@@ -311,6 +339,10 @@ function spawnWave() {
   enemyBullets.length = 0
   bullets.length = 0
   powerups.length = 0
+  meteors.length = 0
+  state.stageMod = stageModForWave(state.wave)
+  state.meteorTimer = 1.2
+  if (state.stageMod === 'meteor') spawnMeteor()
   state.currentSquad = 1
   state.squadsTotal = state.wave % 5 === 0 ? 2 : clamp(2 + Math.floor(state.wave / 3), 2, 4)
   spawnSquad()
@@ -371,6 +403,7 @@ function updateHud() {
   livesEl.textContent = `${state.lives}/${state.maxLives}`
   shieldEl.textContent = `${state.shield}/${state.maxShield}`
   weaponEl.textContent = `Lv.${upgrades.weapon}`
+  comboEl.textContent = state.combo > 0 ? `${state.combo}x` : '0'
   specialButton.textContent = state.specialCooldown > 0 ? `EMP ${Math.ceil(state.specialCooldown)}` : `EMP ${state.empCharges}`
   specialButton.disabled = state.empCharges <= 0 || state.specialCooldown > 0 || !state.running || state.over || state.betweenWaves
   syncUpgradeCards()
@@ -554,6 +587,13 @@ function addEffect(type, x, y, color = '#f4d35e', radius = 24) {
   effects.push({ type, x, y, color, radius, life: 0.75, maxLife: 0.75 })
 }
 
+function registerKill() {
+  state.combo += 1
+  state.comboTimer = 3.2
+  state.maxCombo = Math.max(state.maxCombo, state.combo)
+  return 1 + Math.min(state.combo, 80) * 0.018
+}
+
 function spawnPowerup(type = '') {
   const roll = Math.random()
   const chosen =
@@ -579,7 +619,8 @@ function spawnPowerup(type = '') {
 }
 
 function maybeDropTreasure(enemy) {
-  const dropChance = isBossType(enemy.type) ? 1 : clamp(0.18 + state.wave * 0.012 + state.currentSquad * 0.025, 0.18, 0.44)
+  const modBonus = state.stageMod === 'treasure' ? 0.18 : 0
+  const dropChance = isBossType(enemy.type) ? 1 : clamp(0.18 + state.wave * 0.012 + state.currentSquad * 0.025 + modBonus, 0.18, 0.62)
   if (Math.random() > dropChance) return
   const roll = Math.random()
   const type =
@@ -616,11 +657,14 @@ function updateStars(dt) {
 
 function updatePlayer(dt) {
   const move = (input.right ? 1 : 0) - (input.left ? 1 : 0)
-  player.x = clamp(player.x + move * player.speed * dt, 36, world.width - 36)
+  const stageSpeed = state.stageMod === 'solar' ? 1.18 : 1
+  player.x = clamp(player.x + move * player.speed * stageSpeed * dt, 36, world.width - 36)
   player.cooldown = Math.max(0, player.cooldown - dt)
   player.invincible = Math.max(0, player.invincible - dt)
   state.specialCooldown = Math.max(0, state.specialCooldown - dt)
   state.droneTimer = Math.max(0, state.droneTimer - dt)
+  state.comboTimer = Math.max(0, state.comboTimer - dt)
+  if (state.comboTimer === 0) state.combo = 0
 
   if (input.fire) fireBullet()
   if (state.droneTimer === 0) {
@@ -662,6 +706,7 @@ function updateBullets(dt) {
   for (let index = enemyBullets.length - 1; index >= 0; index -= 1) {
     const bullet = enemyBullets[index]
     const slow = state.freezeTimer > 0 ? 0.32 : 1
+    if (state.stageMod === 'ion') bullet.vx += Math.sin(performance.now() / 170 + bullet.y) * 18 * dt
     bullet.x += bullet.vx * dt * slow
     bullet.y += bullet.vy * dt * slow
     if (bullet.y > world.height + 70 || bullet.x < -70 || bullet.x > world.width + 70) enemyBullets.splice(index, 1)
@@ -769,6 +814,49 @@ function updatePowerups(dt) {
   }
 }
 
+function spawnMeteor() {
+  meteors.push({
+    x: rand(40, world.width - 40),
+    y: -40,
+    vx: rand(-70, 70),
+    vy: rand(230, 330),
+    radius: rand(12, 24),
+    life: 5,
+  })
+}
+
+function updateMeteors(dt) {
+  if (state.stageMod === 'meteor') {
+    state.meteorTimer -= dt
+    if (state.meteorTimer <= 0) {
+      spawnMeteor()
+      state.meteorTimer = rand(0.55, 1.25)
+    }
+  }
+
+  const playerBox = { x: player.x - 26, y: player.y - 20, width: 52, height: 42 }
+  for (let index = meteors.length - 1; index >= 0; index -= 1) {
+    const meteor = meteors[index]
+    meteor.x += meteor.vx * dt
+    meteor.y += meteor.vy * dt
+    meteor.life -= dt
+    const meteorBox = { x: meteor.x - meteor.radius, y: meteor.y - meteor.radius, width: meteor.radius * 2, height: meteor.radius * 2 }
+    for (const enemy of enemies) {
+      const enemyBox = { x: enemy.x - enemy.width / 2, y: enemy.y - enemy.height / 2, width: enemy.width, height: enemy.height }
+      if (rectsOverlap(meteorBox, enemyBox)) {
+        enemy.hp -= 3
+        spawnExplosion(meteor.x, meteor.y, '#ff8b67', 8)
+      }
+    }
+    if (rectsOverlap(meteorBox, playerBox)) {
+      damagePlayer()
+      spawnExplosion(meteor.x, meteor.y, '#ff8b67', 16)
+      meteor.life = 0
+    }
+    if (meteor.y > world.height + 60 || meteor.life <= 0) meteors.splice(index, 1)
+  }
+}
+
 function updateParticles(dt) {
   for (let index = particles.length - 1; index >= 0; index -= 1) {
     const particle = particles[index]
@@ -812,8 +900,9 @@ function resolveCollisions() {
       spawnExplosion(bullet.x + bullet.width / 2, bullet.y, bullet.color, 7)
 
       if (enemy.hp <= 0) {
-        const killScore = enemy.score + state.wave * 10
-        const killCredits = enemy.credit
+        const comboMultiplier = registerKill()
+        const killScore = Math.round((enemy.score + state.wave * 10) * comboMultiplier)
+        const killCredits = Math.round(enemy.credit * (1 + Math.min(state.combo, 60) * 0.01))
         state.score += killScore
         state.credits += killCredits
         floatText(enemy.x, enemy.y - 22, `+${killScore} / ${killCredits}晶`, enemyColor(enemy.type))
@@ -860,8 +949,9 @@ function cleanupDefeatedEnemies(multiplier = 0.75) {
   for (let index = enemies.length - 1; index >= 0; index -= 1) {
     const enemy = enemies[index]
     if (enemy.hp > 0) continue
-    state.score += Math.floor(enemy.score * multiplier)
-    state.credits += Math.floor(enemy.credit * multiplier)
+    const comboMultiplier = registerKill()
+    state.score += Math.floor(enemy.score * multiplier * comboMultiplier)
+    state.credits += Math.floor(enemy.credit * multiplier * (1 + Math.min(state.combo, 60) * 0.01))
     maybeDropTreasure(enemy)
     spawnExplosion(enemy.x, enemy.y, enemyColor(enemy.type), isBossType(enemy.type) ? 42 : 16)
     enemies.splice(index, 1)
@@ -1016,6 +1106,7 @@ function update(dt) {
   updateBullets(dt)
   updateEnemies(state.freezeTimer > 0 ? dt * 0.38 : dt)
   updatePowerups(dt)
+  updateMeteors(dt)
   updateParticles(dt)
   updateFloatTexts(dt)
   updateEffects(dt)
@@ -1297,6 +1388,28 @@ function drawPowerups() {
   }
 }
 
+function drawMeteors() {
+  ctx.save()
+  for (const meteor of meteors) {
+    const gradient = ctx.createRadialGradient(meteor.x, meteor.y, 2, meteor.x, meteor.y, meteor.radius)
+    gradient.addColorStop(0, '#f4d35e')
+    gradient.addColorStop(0.55, '#ff8b67')
+    gradient.addColorStop(1, 'rgba(232, 93, 117, 0.1)')
+    ctx.fillStyle = gradient
+    ctx.shadowBlur = 20
+    ctx.shadowColor = '#ff8b67'
+    ctx.beginPath()
+    ctx.arc(meteor.x, meteor.y, meteor.radius, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 139, 103, 0.38)'
+    ctx.beginPath()
+    ctx.moveTo(meteor.x, meteor.y)
+    ctx.lineTo(meteor.x - meteor.vx * 0.16, meteor.y - meteor.vy * 0.16)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 function drawParticles() {
   for (const particle of particles) {
     ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1)
@@ -1361,16 +1474,17 @@ function drawBossBar() {
 
 function drawWaveStatus() {
   if (!state.running || state.over) return
+  const mod = stageMods[state.stageMod] ?? stageMods.calm
   ctx.save()
   ctx.fillStyle = 'rgba(5, 11, 18, 0.62)'
   ctx.beginPath()
-  roundedRect(20, 18, 210, 34, 8)
+  roundedRect(20, 18, 326, 34, 8)
   ctx.fill()
-  ctx.fillStyle = '#dff8ff'
+  ctx.fillStyle = mod.color
   ctx.font = '900 13px system-ui'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`Wave ${state.wave}  敵群 ${state.currentSquad}/${state.squadsTotal}  剩 ${enemies.length}`, 34, 35)
+  ctx.fillText(`Wave ${state.wave}  ${mod.label}  敵群 ${state.currentSquad}/${state.squadsTotal}  剩 ${enemies.length}`, 34, 35)
   ctx.restore()
 }
 
@@ -1388,6 +1502,7 @@ function draw() {
   ctx.save()
   if (state.screenShake > 0) ctx.translate(rand(-7, 7) * state.screenShake, rand(-7, 7) * state.screenShake)
   drawBackground()
+  drawMeteors()
   drawPowerups()
   drawBullets()
   drawWeaponEffects()
