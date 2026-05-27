@@ -1,0 +1,52 @@
+# Iteration Log
+
+- V01: Reframed the game as an upgrade-driven arcade shooter instead of a single-mechanic demo.
+- V02: Added credits as the persistent upgrade currency.
+- V03: Added a six-cell HUD for score, credits, wave, lives, shield, and weapon level.
+- V04: Added the weapon upgrade track.
+- V05: Weapon level now changes bullet count.
+- V06: Weapon level now changes fire rate.
+- V07: Weapon level now changes main cannon damage.
+- V08: Added the engine upgrade track.
+- V09: Engine upgrades now directly increase horizontal movement speed.
+- V10: Added the hull upgrade track.
+- V11: Hull upgrades now increase maximum lives.
+- V12: Added the shield upgrade track.
+- V13: Shield upgrades now increase maximum shield charges.
+- V14: Shield now absorbs damage before lives.
+- V15: Shield now recharges at the start of each wave.
+- V16: Added the drone upgrade track.
+- V17: Drone upgrades now add automatic side shots.
+- V18: Higher drone levels now add more side-fire lanes.
+- V19: Added EMP special attack.
+- V20: EMP now clears enemy bullets.
+- V21: EMP now damages all active enemies.
+- V22: Added EMP cooldown display on the control button.
+- V23: Added keyboard upgrade shortcuts from 1 to 5.
+- V24: Added wave-clear overlay.
+- V25: Wave-clear overlay now grants bonus credits.
+- V26: Wave-clear overlay now lets the player upgrade before the next wave.
+- V27: Added Next Wave control.
+- V28: Added Scout enemy type.
+- V29: Added Bee enemy type with aimed shots.
+- V30: Added Guard enemy type with spread shots.
+- V31: Added Sniper enemy type with fast aimed bullets.
+- V32: Added Bomber enemy type with fan-shaped bursts.
+- V33: Added Tank enemy type with higher health and heavy shots.
+- V34: Added Boss enemy type every fifth wave.
+- V35: Boss now has a visible health bar.
+- V36: Boss now fires ring patterns.
+- V37: Boss now combines ring and aimed attacks.
+- V38: Enemy composition now changes as wave number rises.
+- V39: Enemy health now scales by wave.
+- V40: Enemy shot timers now scale by wave.
+- V41: Enemy dive frequency now scales by wave.
+- V42: Powerups now include life, shield, credits, and EMP reset.
+- V43: Powerup visuals now use distinct colors and labels.
+- V44: Player ship now draws shield state.
+- V45: Player ship now draws upgraded drone escorts.
+- V46: Upgrade cards now show live level and cost.
+- V47: Upgrade buttons now disable when unaffordable or maxed.
+- V48: Mobile layout now supports the larger upgrade panel.
+- V49: README now documents controls, upgrade tracks, and enemy behaviors.
+- V50: Reverified the upgraded game with syntax, HTTP, and browser screenshot checks.
